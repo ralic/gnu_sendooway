@@ -1,0 +1,463 @@
+.\" Sendooway - a multi-user and multi-target SMTP proxy
+.\"   Copyright (C) 2012 Michael Kammer
+.\"   Published under the GNU GPL version 3 (or later)
+.\"
+.\" Sendooway is free software: you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation, either version 3 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" Sendooway is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with Sendooway.  If not, see <http://www.gnu.org/licenses/>.
+.\"
+.TH sendooway.conf 5
+.SH NAME
+sendooway.conf \- the configuration file for the Sendooway SMTP proxy
+
+.SH SYNOPSIS
+\fBsendooway.conf\fP is the central configuration file for
+\fBsendooway\fP(1). It is also used as per-user includes allowing users
+to define their own mail transfer settings.
+
+.SH FILE FORMAT
+Every line consists of a keyword/value-pair which is separated by an
+equality sign ('='). All characters that follow a hash ('#') and
+completely empty lines are ignored. Both spaces (' ') and tab spaces
+('\\t') can be used as separators around the equality sign or at the
+beginning of a line. But their use is not required.
+.PP
+Keywords and most values are not case-sensitive. Exceptions
+(e.g. passwords) will be described in the following sections. Values can
+be numbers, strings, booleans or part of an enumeration. Strings are
+\fInot\fP enclosed by inverted commas. Boolean values must be given as
+\fByes\fP or \fBno\fP.
+
+.SH SECURITY CONSIDERATIONS
+A \fBsendooway.conf\fP file might contain passwords in plain text. If
+that is true for you, this file should be owned by \fIroot\fP with mode
+\fI0600\fP. In all other cases it should not be writable by normal
+users.
+
+.SH EXPLANATION OF EACH KEYWORD
+.TP
+.B localname \fP[string]
+This should be set to the fully-qualified host name of your system. It
+is used to identify Sendooway to mail clients and external mail transfer
+agents using the SMTP EHLO command.
+.PP
+.RS
+If no value is given (or this option is missing) Sendooway will use the
+return value of gethostname(). However it is strongly recommend
+specifying the host name by yourself.
+.RE
+
+.TP
+.B cloneEhlo \fP[boolean]
+Every mail client has to identify itself before it is allowed to
+authenticate. Say \fByes\fP here if you want Sendooway to clone this
+string when it connects to the remote server. You might want to set this
+option to hide the existence of Sendooway to remote systems. For this
+purpose see also \fBaddReceivedField\fP below.
+.PP
+.RS
+If \fIno\fP is specified (or this option is missing) Sendooway will use
+the value of \fBlocalname\fP instead.
+.RE
+
+.TP
+.B addReceivedField \fP[boolean]
+Normally each SMTP server adds a \fIReceived\fP line inside the mail
+header. If you want to hide the existence of Sendooway (e.g. use
+Sendooway as fully transparent proxy) you should set this option to
+\fIno\fP.
+.PP
+.RS
+If \fIyes\fP is specified (or this option is missing) Sendooway will
+add a line inside the mail header.
+.RE
+
+.TP
+.B timeout \fP[number]
+This is the maximum time in seconds Sendooway will wait when reading
+data from TCP connections (with a mail client \fIor\fP a remote server).
+When no data is received within this timeout the connection will be
+terminated. This value defaults to 300 seconds (5 minutes).
+
+.TP
+.B sslCA \fP[string]
+This file holds known certificate authorities. It defaults to
+\fI/etc/ssl/certs/ca-certificates.crt\fP but some distributions might
+use different file locations.
+.PP
+.RS
+Users can redefine this value to use include their own CAs. This is
+especially reasonable when users trust certificates the system
+administrator does not want to trust -- or the other way around.
+.RE
+
+.PP
+.B sslCert
+.RS
+.RE
+.B sslKey \fP[string]
+.RS
+These files contain the certificate/key when Sendooway acts as secure
+mail server. If Sendooway only serves local connections (or you are
+ssh tunneling) then you probably do not want to use encryption. In all
+other cases you \fIreally\fP should generate a certificate to offer
+secured connections.
+.RE
+
+.TP
+.B mailerEncryption \fP[tristate]
+This option controls how Sendooway handles secured connections. It
+knows about the following values:
+.PP
+.RS
+.TP
+.B allowed \fP(default)
+Connections may be secured by using the \fISTARTTLS\fP extension or the
+\fI--ssl\fP command line switch; however, a mail client is also allowed
+to send plain passwords over an unsecure channel.
+.TP
+.B required
+Connections must be secured in order to authenticate.
+.TP
+.B forbidden
+Entirely disables encryption support and allows unsecured
+authentication. This is only useful for connections that are known to be
+secure.
+.RE
+
+.TP
+.B ext8BitMime \fP[tristate]
+Every modern MTA should support 8-bit encodings. Sendooway can handle
+this but it is unable to re-encode messages if the remote server relies
+on 7-bit data. Strictly speaking we must not accept 8-bit messages for
+backwards compatibility. The following values are accepted:
+.PP
+.RS
+.TP
+.B force \fP(default)
+Propagate 8-bit-mime support and fail if the
+remote host does not do the same. This would disable some very old
+SMTP servers.
+.TP
+.B disable
+Do not propagate 8-bit-mime but support it anyway. You should only use
+this option when you 1) depend on very old servers \fIand\fP 2) use mail
+clients that fall back on 7-bit-encodings. Personally we would try to
+avoid this setting.
+.TP
+.B ignore
+Propagate 8-bit-mime and ignore specifications of remote servers. Nearly
+every server out there \fIshould\fP support this. This setting is the
+recommend one but since it breaks the standards it is not set be default.
+.RE
+
+.TP
+.B extMessageSize \fP[multi]
+This is the maximum message size in bytes a client is elated to submit.
+Be aware that this is only a \fIvery\fP soft limit because clients might
+simply ignore this limitation. This option also breaks the standards
+since Sendooway might advertise a message limit which is higher than the
+maximum message size of the relevant server. Possible values are:
+.PP
+.RS
+.TP
+.B disable
+Entirely disable the \fIsize\fP extension. If set, Sendooway will not
+inform the client about message limits and might consume lots of useless
+traffic.
+.TP
+.B 0 \fP(default)
+Advertise the \fIsize\fP extension but do not inform the client about
+actual message length limitations. However the client is encourage to
+tell the actual message size \fIbefore\fP sending the message data.
+Sendooway can than relay this information to the remote server. This
+option is the recommend default.
+.TP
+.B [size]
+Advertise a message limit of \fB[size]\fP bytes. Apart from that behave
+like \fB0\fP above.
+.RE
+
+.PP
+.B smarthostPlain
+.RS
+.RE
+.B smarthostLogin
+.RS
+.RE
+.B smarthostCramMD5 \fP[tristate]
+.RS
+Tells Sendooway which mechanisms should be used to authenticate at
+remote servers. Each of these three options can have one of the
+following values:
+.PP
+.TP
+.B ifAdvertised \fP(default)
+Use this mechanism only if the remote server has advertised it. This is
+the default.
+.TP
+.B alwaysTry
+Always try to use this mechanism no matter whether the remote server has
+advertised it. This is especially interesting for \fICRAM-MD5\fP because
+it tries to avoid sending a plain text password. This breaks standards
+and might corrupt the connection to some remote servers.
+.TP
+.B never
+Avoid using this mechanism.
+.RE
+.TP
+.B validUser \fP[string]
+This keyword is special. If there is no such keyword inside your
+configuration file every user is allowed to use Sendooway (as long as
+(s)he is able to authenticate against PAM). This is, of course, the
+default behavior.
+.PP
+.RS
+If Sendooway should only be available for selected users those have to
+be listed here. Note that this keyword has to be \fIrepeated for
+every\fP single user. You can also enable an entire user group by
+specifying the group name prefixed with a percentage sign ('%').
+.RE
+.TP
+.B smarthostMapping \fP[string]
+This keyword can be given multiple times. It tells Sendooway where
+remote authentication information can be looked up. Surely this is the
+most important setting. Every mapping is prefixed with the adequate file
+type, followed by a colon (':') and the name of the file. Finally there
+are three supported file types:
+.PP
+.RS
+.TP
+.B getmail [filename]
+Parse an adapted \fIgetmailrc\fP-like file. Like above \fI%h\fP and
+\fI%u\fP are replaced with proper values. Mostly this option is
+specified in user configuration files. For more information see
+section \fBUSING GETMAILRC\fP below.
+.TP
+.B fetchmail [filename]
+Parse an adapted \fI.fetchmailrc\fP-like file. The strings \fI%h\fP and
+\fI%u\fP are replaced by the home path resp. the name of the
+authenticated user. See section \fBUSING FETCHMAILRC\fP below.
+.TP
+.B direct [address] [server] [username] [password] [options]
+This format can be used if neither fetchmail nor getmail are used. Use
+it to directly connect users that send as \fB[address]\fP to the SMTP
+server named \fB[server]\fP and authenticate as \fB[username]\fP with
+the password \fB[password]\fP. \fB[option]\fP is a comma separated list
+of zero or more of the following keywords:
+.PP
+.RS
+.TP
+.B tls
+Connect to the SMTP server using the transport layer security protocol
+(TLS).
+.TP
+.B ssl
+Connect to the SMTP server using the secured socket layer (SSL).
+.TP
+.B noCertCheck
+If \fBtls\fP or \fBssl\fP are defined, then errors on certificate
+validation are ignored. Nevertheless validation errors are always
+logged.
+.RE
+.PP
+If the \fBsmarthostMapping\fP keyword is neither given inside your
+global \fInor\fP user configuration file, then the following default
+is used:
+.PP
+.RS
+.nf
+smarthostMapping = getmail:%h/.getmail/getmailrc
+smarthostMapping = fetchmail:%h/.fetchmailrc
+.fi
+.RE
+.PP
+.TP
+.B userInclude \fP[string]
+Some values should be defined on a per-user basis. As soon as a user is
+successfully authenticated agains PAM Sendooway will try use load the
+file specified here (\fI%h\fP and \fI%u\fP are replaced by the home dir
+resp. the name of according user). User settings are always preferred
+against global ones but Sendooway will fall back to global
+\fBsmarthostMapping\fPs if no per-user mapping fits. Since this file is
+loaded after user authentication some settings are useless (e.g.
+\fBext8BitMime\fP and such).
+.PP
+All other keywords are rejected.
+
+.SH USING GETMAILRC
+Each \fIgetmailrc\fP-like defines exactly one mail account. If more than
+one account is used, multiple files have to be parsed. Unfortunately,
+there is no standard on where to save those files and you have to
+specify the location for each file. This is usually done with several
+\fBsmarthostMapping=getmail:\fP entries inside your Sendooway
+configuration.
+.PP
+We assume that you are familiar with \fBgetmail\fP(1) and its
+configuration files. Sendooway defines a new section named
+\fB[sender]\fP. Inside this section the following keyword-value-pairs
+are valid:
+.PP
+.TP
+.B type
+This defines how the remote server can be reached. At the moment
+Sendooway supports three different sender types:
+.RS
+.TP
+.B SimpleSMTPSender
+Mails are sent over an unencrypted connection. You hopefully do not
+need this.
+.TP
+.B SimpleSMTPSSLSender
+The SMTP connection is encrypted using the secured socket layer (SSL).
+.TP
+.B SimpleSMTPTLSSender
+This is the most modern way of using the SMTP protocol. Sendooway will
+secure the connection using the transport layer security protocol (TLS).
+.RE
+.TP
+.B server
+This defines the SMTP server which has to be used for outgoing mails. If
+no remote server is defined Sendooway will fall back to the incoming
+mail server (IMAP/POP3/whatever). However you are \fIreally\fP
+encouraged to define an outgoing server.
+.TP
+.B port
+Per default, Sendooway will try to contact the remote server on TCP port
+587 (or port 465 for SSL connections). Port 25 is only used for
+unencrypted connections (but this might change in future). If you want
+to connect to another port, it can be specified here. The value can be a
+number between 1 and 65535 or the corresponding service name.
+.TP
+.B username
+This is the username for the remote SMTP server. If this keyword
+is not given Sendooway will use the same username as getmail uses for
+mail retrieval.
+.TP
+.B password
+Like above but for your account password.
+.PP
+.TP
+.B address
+This keyword is mandatory. It defines the mail address which is used for
+outgoing mails. If the address matches the address a mail client uses as
+sender address, then (and only then) Sendooway connects to the server
+specified above. The \fBaddress\fP value can be defined multiple times
+if more than one mail address belongs to this account.
+.PP
+.B TODO TODO TODO \fP How to ignore certificate validation errors? A
+message to getmails mailing list has been sent.
+.PP
+Below is an example. It asks getmail to retrieve mails for user
+\fIalice\fP and password \fIsecret\fP from \fImailbox.moon.net\fP.
+Sendooway will send outgoing mails over \fImx.moon.net\fP with TLS
+encryption and the same account data as long as the sender address
+matches \fIalice@moon.net\fP or \fIbobs_angel@moon.net\fP.
+.PP
+.RS
+.nf
+[destination]
+type = Maildir
+path = ~/Maildir/
+
+[retriever]
+type = SimplePOP3SSLRetriever
+server = mailbox.moon.net
+username = alice
+password = secret
+
+[sender]
+type = SimpleSMTPTLSSender
+server = mx.moon.net
+address = alice@moon.net
+address = bobs_angel@moon.net
+.fi
+.RE
+
+.SH USING FETCHMAILRC
+You can define several mail accounts inside a single
+\fIfetchmailrc\fP-like file. Normally you should only want to use those
+files if you are using \fBfetchmail\fP(1) and already know how it has to
+be configured to retrieve mails.
+.PP
+At the moment fetchmail does not allow additional information inside
+its configuration file. For that reason Sendooway's keywords are
+prefixed with a hash ('#') and thus be considered as comments. Foreach
+definied account Sendooway recognizes the following keywords:
+.TP
+.B #sendooway:server [smtp server]
+This is mandatory and defines the SMTP server which has to be used for
+outgoing mails.
+.TP
+.B #sendooway:port [smtp port]
+Per default Sendooway will try to contact the remote server on TCP port
+587 (or port 465 for SSL connections). Port 25 is only used for
+unencrypted connections (but this might change in future). If you want
+to connect to another port it can be specified here. \fB[smtp port]\fP
+can be a numeric value between 1 and 65535 or the corresponding service
+name.
+.TP
+.B #sendooway:user [username]
+This is the username for the outgoing SMTP connection. If this keyword
+is not given Sendooway will use the same username as fetchmail uses for
+mail retrieval.
+.TP
+.B #sendooway:pass [password]
+Like above but for your account password.
+.PP
+.TP
+.B #sendooway:tls
+Connect to the SMTP server using the transport layer security protocol
+(TLS).
+.TP
+.B #sendooway:ssl
+Connect to the SMTP server using the secured socket layer (SSL).
+.TP
+.B #sendooway:noCertCheck
+If \fB#sendooway:tls\fP or \fB#sendooway:ssl\fP are defined, then errors
+on certificate validation are ignored. Nevertheless validation errors
+are always logged.
+.TP
+.B #sendooway:address [mail address]
+This keyword is mandatory and \fImust be the last option\fP of any
+account. It defines the mail address which is used for outgoing mails.
+If this address matches the address a mail client uses as sender
+address then (and only then) Sendooway connects to the server specified
+above.
+.PP
+Below is an example. It asks fetchmail to retrieve mails for user
+\fIalice\fP and password \fIsecret\fP from \fImailbox.moon.net\fP.
+Sendooway will send outgoing mails over \fImx.moon.net\fP with TLS
+encryption and the same account data as long as the sender address
+matches \fIalice@moon.net\fP.
+.PP
+.RS
+.nf
+server "mailbox.moon.net"
+   protocol pop3
+   user "alice"
+   pass "secret"
+   #sendooway:server "mx.moon.net"
+   #sendooway:tls
+   #sendooway:address "alice@moon.net"
+.fi
+.RE
+
+.SH AUTHOR
+Michael Kammer
+
+.SH SEE ALSO
+\fBsendooway\fP(1), \fBfetchmail\fP(1), \fBgetmail\fP(1)
+.PP
+For the feature list and some default configuration files have a look
+at Sendooway's beautiful homepage at
+.I http://www.kuspbv.de/sendooway/

@@ -1,0 +1,42 @@
+Sendooway - a multi-user and multi-target SMTP proxy
+  Copyright (C) 2012 Michael Kammer
+  Published under the GNU GPLv3+ (see COPYING)
+------------------------------------------------------------------------
+
+Sendooway uses the GNU Build System, also known as autotools.
+There are just five steps you definitely need:
+
+1) Dependencies
+		Install the most conspicuous dependencies (both runtime and
+		development files). These are PAM and GnuTLS.
+
+		Even if Sendooway compiles cleanly you will need a super-server
+		daemon like xinetd to use it. Install one! If you just want
+		to test Sendooway, netcat will also last.
+
+2) Configure build system
+		./configure will scan for unmet dependencies and prepare the
+		files which are needed to compile Sendooway. You are probably
+		interested in the --prefix parameter: If you want to install
+		Sendooway as /usr/bin/sendooway with its configuration file
+		under /etc/sendooway.conf you should run configure as follows:
+
+		      ./configure --prefix=/usr --sysconfdir=/etc
+
+		Have a look at ./configure --help for more information.
+
+3) Compile
+		Type "make" to build Sendooway.
+
+4) Install
+		Just type "make install". Depending on the prefix path you gave
+		./configure in step 2, you probably have to do this step as super
+		user.
+
+5) Configure Sendooway
+		Have a look at /etc/sendooway.conf (or whichever you used as
+		--sysconfdir) and modify it to fit your needs. More detailed
+		information can be found in Sendooway's documentation.
+
+		You also have to configure your super-server daemon. Users
+		of xinetd can find a template under doc/examples/xinetd.conf

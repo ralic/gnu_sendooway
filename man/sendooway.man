@@ -1,0 +1,177 @@
+.\" Sendooway - a multi-user and multi-target SMTP proxy
+.\"   Copyright (C) 2012 Michael Kammer
+.\"   Published under the GNU GPL version 3 (or later)
+.\"
+.\" Sendooway is free software: you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation, either version 3 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" Sendooway is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with Sendooway.  If not, see <http://www.gnu.org/licenses/>.
+.\"
+.TH sendooway 1
+.SH NAME
+Sendooway \- a multi-user and multi-target SMTP proxy
+
+.SH SYNOPSIS
+.B sendooway
+[\-h] [\-s] [\-S] [\-c configfile] [\-V]
+
+.SH DESCRIPTION
+Comfortable mail clients allow using more than one identity when
+sending an email. Often every identity comes with its own SMTP server
+and authentication data. You have to remember the password for every
+identity or store it inside your mail client. If you use more than one
+client (one on your desktop machie, one on your smartphone and one
+webmail solution), changing a password is a pain.
+.PP
+Tools like \fBfetchmail\fP(1) or \fBgetmail\fP(1) allow to collect mails
+from different mail servers. You have to give them access to every
+account they should visit. \fBSendooway\fP can use their password files
+to send your mails transparently. The only password you have to
+remember/store inside your mail client is your UNIX password.
+\fBSendooway\fP automatically connects the correct SMTP server, logs on
+with your account data and sends your mail. There will never be a bounce
+messages because your mail client directly communicates with the remote
+MTA. A mail is send as soon as the procedure is finished.
+
+.SH SECURITY CONSIDERATIONS
+Privileged \fIroot\fP access is needed to check the password sent by the
+client against the \fBPAM\fP system. Although those privileges are
+dropped as soon as possible you should consider that a security issue.
+There are plans to run the interacting components of \fBSendooway\fP as
+\fInobody\fP and have one sendooway-authenticator which handles
+authentication and file access. However at the moment we rely on
+\fBxinetd\fP and do not start two processes per connection.
+.PP
+\fBSendooway\fP uses GnuTLS (\fIhttp://www.gnutls.org/\fP) to cipher
+client and server connections. It uses the global system database to
+validate certificate chains and refuses any unsecure connection. Since
+\fBSendooway\fP is a proxy acting as man-in-the-middle, it is up to the
+mail client to check \fBSendooway\fP's server certificate.
+.PP
+The \fIAUTH\fP-Extension of SMTP is supported. When authenticating on
+the remote side \fBSendooway\fP always tries to use \fICRAM-MD5\fP and
+then falls back to plain text. Since we use \fBPAM\fP hashing can not
+be used on the local side, but there are plans to integrate Kerberos.
+.PP
+\fBSendooway\fP does not solve a problem, it only moves it. You only
+have to remember/save one password on your mail client. If someone
+steals your notebook or phone then your passwords are still safely
+stored on your private server. If you use \fBgetmail\fP, \fBfetchmail\fP
+or even any other (pseudo) proxy solution (like \fBExim\fP with multiple
+smarthosts) your passwords are already available ;)
+
+.SH INVOCATION
+Per default \fBSendooway\fP is started as root by \fBxinetd\fP(1) or any
+other super-server daemon when the mail client is establishing a
+connection. It then asks PAM to authenticate against the local user
+database, reads your \fI~/.sendoowayrc\fP, \fI~/.fetchmailrc\fP and/or
+getmailrc-files and redirects all incoming and outgoing traffic to your
+specific SMTP server. Thereby \fBSendooway\fP does not violate any
+protocol specification.
+.PP
+For use-case examples on how to start Sendooway see section
+\fBEXAMPLES\fP below.
+
+.SH OPTIONS
+.TP
+.B \-h \--help
+just display a short help text
+.TP
+.B \-S \--nossl
+consider connection safe (disable STARTTLS command)
+.PP
+.RS
+If your super-server already encrypts the connection, \fBSendooway\fP
+must refuse to initialize a second handshake. This option notifies
+\fBSendooway\fP that it must not insist on the \fISTARTTLS\fP command
+neither allow its use. It also overrides the global
+\fIForceClientEncryption\fP config option.
+.RE
+.TP
+.B \-s \--ssl
+immediately start the SSL handshake (use for SMTPS)
+.PP
+.RS
+If neither \fB--ssl\fP nor \fB--nossl\fP are given it is up to the
+client to start the TLS handshake by sending the \fISTARTTLS\fP command.
+Nevertheless you can instruct \fBSendooway\fP to fail on unencrypted
+channels.
+.RE
+.TP
+.B \-c \--config CONFIG
+load configuration from CONFIG
+(default: \fI/etc/sendooway.conf\fP). See \fBsendooway.conf\fP(5) for an
+example.
+.TP
+.B \-l \--log LOGFILE
+do not use syslog but append log data to LOGFILE
+.TP
+.B \-V \--version
+print program version and exit
+
+.SH EXAMPLES
+
+For testing purposes Sendooway can be started without an additional
+configuration file. The following reads client data from \fIstdin\fP,
+writes SMTP responses to \fIstdout\fP and sends logging output to
+\fIstdout\fP.
+.PP
+.RS
+.nf
+sendooway -c /dev/null -l \\&2
+.fi
+.RE
+.PP
+The following example uses \fBnetcat\fP(1) to serve one single client
+connection on port 587:
+.PP
+.RS
+.nf
+nc -l -p 587 -e $(which sendooway)
+.fi
+.RE
+.PP
+At the moment it is best to start Sendooway by a super-server daemon.
+For xinetd a valid configuration block could look like this:
+.PP
+.RS
+.nf
+service submission
+{
+    socket_type    = stream
+    protocol       = tcp
+    wait           = no
+    user           = root
+    server         = /usr/bin/sendooway
+}
+.fi
+.RE
+.PP
+And another example for inetd:
+.PP
+.RS
+.nf
+submission stream tcp nowait root /usr/sbin/tcpd sendooway
+.fi
+.RE
+.PP
+If xinetd/inetd should listen on port 25 instead \fBsubmission\fP has to
+be replaced by \fBsmtp\fP.
+
+.SH AUTHOR
+Michael Kammer
+
+.SH SEE ALSO
+\fBsendooway.conf\fP(5), \fBfetchmail\fP(1), \fBgetmail\fP(1)
+.PP
+For the feature list and some default configuration files have a look
+at Sendooway's beautiful homepage at
+.I http://www.kuspbv.de/sendooway/

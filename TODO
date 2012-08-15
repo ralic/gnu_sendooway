@@ -1,0 +1,22 @@
+Sendooway - a multi-user and multi-target SMTP proxy
+  Copyright (C) 2012 Michael Kammer
+  Published under the GNU GPLv3+ (see COPYING)
+------------------------------------------------------------------------
+
+Important
+	* noCertCheck for getmail (Awaiting response on mailing list)
+	* Send outgoing lines as a whole
+	* "default target" support
+	* Build-in debugging (extended logging)
+	* More meaningful SMTP error messages when remote server fails
+
+Normal
+	* Improve glue parser (especially for fetchmail)
+	* Local domain/MDA support
+	* Kerberos auth
+
+Considerations
+	* Support for netrc configuration files
+	* Filtering
+	* Stand-alone architecture with auth module (root user),
+	  config module (local user) and SMTP module (nobody user)
