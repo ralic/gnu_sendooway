@@ -4,7 +4,6 @@ Sendooway - a multi-user and multi-target SMTP proxy
 ------------------------------------------------------------------------
 
 Important
-	* noCertCheck for getmail (Awaiting response on mailing list)
 	* Send outgoing lines as a whole
 	* "default target" support
 	* Build-in debugging (extended logging)

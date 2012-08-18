@@ -112,6 +112,12 @@ static bool glue_lookupGetmail(char* address, client_data_t* cd,
 					  cd->secType = secSSL;
 					else if (strcasecmp(value, "SimpleSMTPSender") == 0)
 					  cd->secType = secNone;
+				} else if (strcasecmp(key, "no_certificate_check") == 0) {
+					cd->noCertificateCheck =
+					  (strcasecmp(value, "true") == 0) ||
+					  (strcasecmp(value, "on")   == 0) ||
+					  (strcasecmp(value, "yes")  == 0) ||
+					  (strcasecmp(value, "1")    == 0);
 				}
 				break;
 

@@ -325,6 +325,12 @@ This is the most modern way of using the SMTP protocol. Sendooway will
 secure the connection using the transport layer security protocol (TLS).
 .RE
 .TP
+.B no_certificate_check
+If \fBSimpleSMTPTLSSender\fP or \fBSimpleSMTPSSLSender\fP are used above
+and this option is set to \fBtrue\fP, then errors on certificate
+validation are ignored. Nevertheless validation errors are always
+logged.
+.TP
 .B server
 This defines the SMTP server which has to be used for outgoing mails. If
 no remote server is defined Sendooway will fall back to the incoming
@@ -353,9 +359,6 @@ outgoing mails. If the address matches the address a mail client uses as
 sender address, then (and only then) Sendooway connects to the server
 specified above. The \fBaddress\fP value can be defined multiple times
 if more than one mail address belongs to this account.
-.PP
-.B TODO TODO TODO \fP How to ignore certificate validation errors? A
-message to getmails mailing list has been sent.
 .PP
 Below is an example. It asks getmail to retrieve mails for user
 \fIalice\fP and password \fIsecret\fP from \fImailbox.moon.net\fP.
