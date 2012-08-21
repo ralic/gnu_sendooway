@@ -390,7 +390,7 @@ failWithError:
 	return false;
 }
 
-bool options_parseUserInclude(char *username) {
+bool options_parseUserInclude() {
 	const char *replacements[] = {auth_session.username,
 	  auth_session.home};
 	char *conffile;

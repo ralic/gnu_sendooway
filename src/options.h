@@ -52,6 +52,6 @@ extern struct options_t {
 } options;
 
 bool options_parse(char *conffile, bool isGlobal);
-bool options_parseUserInclude(char *username);
+bool options_parseUserInclude();
 
 #endif

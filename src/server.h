@@ -37,8 +37,6 @@ typedef struct server_data_t {
 		bool tlsInitDone;
 		bool tlsEnabled;
 
-		char username[255];
-		char password[255];
 		char peerIp[INET6_ADDRSTRLEN];
 		enum {stateUnauthed = 0, stateAuthed,
 		  stateConnected, stateZombie} state;

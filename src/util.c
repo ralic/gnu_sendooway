@@ -80,6 +80,15 @@ ssize_t util_readTimeout(int fd, char *buf, size_t buflen) {
 	return read(fd, buf, buflen);
 }
 
+void util_strfree(char **str, bool erase) {
+	char *p = *str;
+	if (p) {
+		if (erase) for (;*p;p++) *p = '\0';
+		free(*str);
+		*str = NULL;
+	}
+}
+
 bool util_strstart(const char* str, const char* start) {
 	int i = 0;
 	while (str[i] && start[i]) {

@@ -97,13 +97,11 @@ static int auth_conv(int num_msg, const struct pam_message **msg,
 		switch (msg[i]->msg_style) {
 			case PAM_PROMPT_ECHO_OFF:
 				reply[i].resp_retcode = 0;
-				reply[i].resp = malloc(strlen(login->password)+1);
-				if (reply[i].resp) strcpy(reply[i].resp, login->password);
+				reply[i].resp = strdup(login->password);
 				break;
 			case PAM_PROMPT_ECHO_ON:
 				reply[i].resp_retcode = 0;
-				reply[i].resp = malloc(strlen(login->username)+1);
-				if (reply[i].resp) strcpy(reply[i].resp, login->username);
+				reply[i].resp = strdup(login->username);
 				break;
 			default:
 				break;
@@ -150,15 +148,22 @@ bool auth_runas(const char* username) {
 	struct passwd *passwd = getpwnam(username);
 	if (!passwd) return false;
 
+	util_strfree(&auth_session.username, false);
+	util_strfree(&auth_session.home, false);
+
+	auth_session.username = strdup(passwd->pw_name);
+	auth_session.home = strdup(passwd->pw_dir);
+
+	if (!auth_session.username || !auth_session.home) {
+		util_logger(LOG_CRIT,
+		  "Out of memory while creating session for %u", username);
+		return false;
+	}
+
 	setgroups(1, &passwd->pw_gid);
 	if (setgid(passwd->pw_gid) != 0) return false;
 	if (setuid(passwd->pw_uid) != 0) return false;
 	if (chdir(passwd->pw_dir)  != 0) return false;
-
-	if (auth_session.username) free(auth_session.username);
-	auth_session.username = strdup(passwd->pw_name);
-	if (auth_session.home) free(auth_session.home);
-	auth_session.home = strdup(passwd->pw_dir);
 
 	return true;
 }

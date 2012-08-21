@@ -96,6 +96,16 @@ static inline void util_strcpy(char *dst, char *src, size_t size) {
 }
 
 /**
+ * @brief Overwrite string, free it and null pointer
+ *
+ * @param **str : points to string pointer
+ * @param erase : override memory before freeing
+ *
+ * @return nothing
+ */
+void util_strfree(char **str, bool erase);
+
+/**
  * @brief Check if a string is part of another one
  *
  * @param *str   : points to the string to check

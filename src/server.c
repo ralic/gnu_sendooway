@@ -248,15 +248,10 @@ static bool server_parseFrom(char *in, proxy_fromData_t *from) {
 }
 
 static smtp_reply_t server_doAuthPlain(server_data_t* sd,
-  char* response) {
+  char* response, char **username, char **password) {
 
 	int respLen;
-	char respBuf[UTIL_BASE64SIZE(
-		  sizeofMember(proxy_connection_t, server.username)
-		+ sizeofMember(proxy_connection_t, server.username)
-		+ sizeofMember(proxy_connection_t, server.password)
-		+ 3
-	)];
+	char respBuf[SMTP_MAXLINE + 1];
 
 	if (*response) {
 		while (*response && (*response == ' '))
@@ -279,30 +274,52 @@ static smtp_reply_t server_doAuthPlain(server_data_t* sd,
 	if (!respLen) return replySyntaxArg;
 
 	util_strstep(&response, NULL, respLen, 0);
-	util_strstep(&response, sd->username,
-	  sizeofMember(server_data_t, username), 0);
-	util_strstep(&response, sd->password,
-	  sizeofMember(server_data_t, password), 0);
+
+	util_strfree(username, false);
+	*username = strdup(response);
+	if (!*username) {
+		util_logger(LOG_CRIT, "Unable to allocate memory for username");
+		return replySyntaxArg;
+	} else util_strstep(&response, NULL, respLen, 0);
+
+	util_strfree(password, true);
+	*password = strdup(response);
+	if (!*password) {
+		util_logger(LOG_CRIT, "Unable to allocate memory for user's"
+		  " password");
+
+		util_strfree(username, false);
+		return replySyntaxArg;
+	}
 
 	return replyAuthOk;
 }
 
-static smtp_reply_t server_doAuthLogin(server_data_t* sd) {
+static smtp_reply_t server_doAuthLogin(server_data_t* sd,
+  char **username, char **password) {
+
+	smtp_reply_t reply = replySyntaxArg;
 	int  respLen;
-	char respBuf[util_max(
-		UTIL_BASE64SIZE(sizeofMember(server_data_t, username)),
-		UTIL_BASE64SIZE(sizeofMember(server_data_t, password)),
-		const size_t
-	)];
+	char respBuf[SMTP_MAXLINE + 1];
 
 	/* Get username */
 	server_reply(sd, replyAuth, "VXNlcm5hbWU6");
 	respLen = server_readline(sd, respBuf, sizeof(respBuf), false);
 	if (sd->state != stateZombie) {
 		/* Rejects '*' and errors -> base64 has at least 3 characters */
-		if ( (respLen < 3)
-		  || !util_base64decode(respBuf, respLen, sd->username) )
-		  return replySyntaxArg;
+		if ( respLen >= 3) {
+			util_strfree(username, false);
+			*username = malloc(UTIL_BASE64SIZE(respLen));
+			if (*username) {
+
+				if (!util_base64decode(respBuf, respLen, *username))
+				  util_strfree(username, false);
+
+			} else util_logger(LOG_CRIT, "Unable to allocate memory for"
+			  " username");
+		}
+
+		if (!*username) return reply;
 	} else return replyError;
 
 	/* Get password */
@@ -310,44 +327,56 @@ static smtp_reply_t server_doAuthLogin(server_data_t* sd) {
 	respLen = server_readline(sd, respBuf, sizeof(respBuf), false);
 	if (sd->state != stateZombie) {
 		/* Rejects '*' and errors -> base64 has at least 3 characters */
-		if ( (respLen < 3)
-		  || !util_base64decode(respBuf, respLen, sd->password) )
-		  return replySyntaxArg;
-	} else return replyError;
+		if (respLen >= 3) {
+			util_strfree(password, true);
+			*password = malloc(UTIL_BASE64SIZE(respLen));
+			if (*password) {
 
-	return replyAuthOk;
+				if (!util_base64decode(respBuf, respLen, *password))
+				  util_strfree(password, true);
+
+			} else util_logger(LOG_CRIT, "Unable to allocate memory for "
+			  " user's password");
+		}
+	} else reply = replyError;
+
+	memset(respBuf, sizeof(respBuf), 0);
+	return (password) ? replyAuthOk : reply;
 }
 
 static void server_doAuth(server_data_t* sd, char *cmdline) {
 	smtp_reply_t reply;
+	char *username = NULL;
+	char *password = NULL;
 
 	/* Get Username/Password */
 	if (util_strstart(cmdline, "AUTH PLAIN")) {
-		reply = server_doAuthPlain(sd, &cmdline[10]);
+		reply = server_doAuthPlain(sd, &cmdline[10], &username, &password);
 	} else if (strcasecmp(cmdline, "AUTH LOGIN") == 0) {
-		reply = server_doAuthLogin(sd);
+		reply = server_doAuthLogin(sd, &username, &password);
 	} else reply = replyAuthUnsupported;
 
-	if (reply == replyAuthOk) {
+	if ((reply == replyAuthOk) && username && password) {
 		reply = replyAuthFailed;
 
 		/* Check via PAM */
-		if (auth_validate("sendooway", sd->username, sd->password)) {
-			memset(sd->password, sizeofMember(server_data_t, password), 0);
+		if (auth_validate("sendooway", username, password)) {
 
 			/* Drop privileges */
-			if (auth_runas(sd->username)) {
+			if (auth_runas(username)) {
 				reply = replyAuthOk;
 				sd->state = stateAuthed;
 
 				/* Reread configuration */
-				options_parseUserInclude(sd->username);
+				options_parseUserInclude();
 			}
 		}
 	}
 
-	/* Overwrite password */
-	memset(sd->password, sizeofMember(server_data_t, password), 0);
+	/* Free strings */
+	util_strfree(&username, false);
+	util_strfree(&password, true);
+
 	server_replyC(sd, reply);
 }
 
