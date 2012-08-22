@@ -248,12 +248,13 @@ Parse an adapted \fI.fetchmailrc\fP-like file. The strings \fI%h\fP and
 \fI%u\fP are replaced by the home path resp. the name of the
 authenticated user. See section \fBUSING FETCHMAILRC\fP below.
 .TP
-.B direct [address] [server] [username] [password] [options]
+.B direct [address] [server] [port] [username] [password] [options]
 This format can be used if neither fetchmail nor getmail are used. Use
-it to directly connect users that send as \fB[address]\fP to the SMTP
-server named \fB[server]\fP and authenticate as \fB[username]\fP with
-the password \fB[password]\fP. \fB[option]\fP is a comma separated list
-of zero or more of the following keywords:
+it to connect users that send as \fB[address]\fP directly to the SMTP
+server on host \fB[server]\fP and listening on \fB[port]\fP;
+authenticate as \fB[username]\fP with the password \fB[password]\fP.
+\fB[option]\fP is a comma separated list of zero or more of the
+following keywords:
 .PP
 .RS
 .TP
