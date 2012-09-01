@@ -269,6 +269,9 @@ Connect to the SMTP server using the secured socket layer (SSL).
 If \fBtls\fP or \fBssl\fP are defined, then errors on certificate
 validation are ignored. Nevertheless validation errors are always
 logged.
+.TP
+.B noAuth
+Do not try to authenticate on remote side.
 .RE
 .PP
 If the \fBsmarthostMapping\fP keyword is neither given inside your
@@ -280,6 +283,7 @@ is used:
 smarthostMapping = getmail:%h/.getmail/getmailrc
 smarthostMapping = fetchmail:%h/.fetchmailrc
 .fi
+.RE
 .RE
 .PP
 .TP
@@ -348,7 +352,8 @@ number between 1 and 65535 or the corresponding service name.
 .B username
 This is the username for the remote SMTP server. If this keyword
 is not given Sendooway will use the same username as getmail uses for
-mail retrieval.
+mail retrieval. If you do not want to use remote side authentication,
+define an empty username here.
 .TP
 .B password
 Like above but for your account password.
@@ -430,6 +435,9 @@ Connect to the SMTP server using the secured socket layer (SSL).
 If \fB#sendooway:tls\fP or \fB#sendooway:ssl\fP are defined, then errors
 on certificate validation are ignored. Nevertheless validation errors
 are always logged.
+.TP
+.B #sendooway:noAuth
+Do not try to authenticate on remote side.
 .TP
 .B #sendooway:address [mail address]
 This keyword is mandatory and \fImust be the last option\fP of any

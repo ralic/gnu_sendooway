@@ -5,7 +5,6 @@ Sendooway - a multi-user and multi-target SMTP proxy
 
 Important
 	* Send outgoing lines as a whole
-	* "default target" support
 	* Build-in debugging (extended logging)
 	* More meaningful SMTP error messages when remote server fails
 

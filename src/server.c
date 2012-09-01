@@ -208,7 +208,7 @@ static bool server_parseFrom(char *in, proxy_fromData_t *from) {
 	if (*in != '<') return false;
 
 	/* Copy address (find '>', react on '@') */
-	from->domain = NULL;
+	from->domain = options.localname;
 	char *target = from->address;
 	in++;
 	while (*in && (*in != '>')) {

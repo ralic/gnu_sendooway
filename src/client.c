@@ -377,9 +377,11 @@ bool client_connect(client_data_t* cd) {
 	/* Force 8BITMIME? */
 	if (!cd->ext8bit && (options.ext8bitmime == e8bForce)) goto fail;
 
-	if (client_authCramMD5(cd)) return true;
-	if (client_authPlain(cd)) return true;
-	if (client_authLogin(cd)) return true;
+	if (cd->username[0] != '\0') {
+		if (client_authCramMD5(cd)) return true;
+		if (client_authPlain(cd)) return true;
+		if (client_authLogin(cd)) return true;
+	} else return true;
 
 fail:
 	client_disconnect(cd);

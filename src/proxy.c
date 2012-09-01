@@ -127,7 +127,8 @@ proxy_doFromError_t proxy_doFrom(proxy_connection_t* pc,
 	if ((options.extMsgSize > 0) && (from->size > options.extMsgSize))
 	  return pdfeEnvironment;
 
-	if (!glue_lookup(from->address, &pc->client)) return pdfeLookup;
+	if (!glue_lookup(from->address, from->domain, &pc->client))
+	  return pdfeLookup;
 	if (!client_connect(&pc->client)) return pdfeConnect;
 
 	/* Build command */

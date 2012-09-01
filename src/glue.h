@@ -23,6 +23,6 @@
 #include <stdbool.h>
 #include "client.h"
 
-bool glue_lookup(char* address, client_data_t* cd);
+bool glue_lookup(char* address, char *domain, client_data_t* cd);
 
 #endif

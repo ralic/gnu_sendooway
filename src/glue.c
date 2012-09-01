@@ -24,11 +24,28 @@
 #include "auth.h"
 #include "options.h"
 
+static bool glue_addrcmp(const char *address, const char *domain,
+  const char *match) {
+
+	/* Full match <mailbox@domain> */
+	if (strcasecmp(match, address) == 0) return true;
+
+	/* Default address <*> */
+	if (strcmp(match, "*") == 0) return true;
+
+	/* Domain address <*@domain> */
+	if (util_strstart(match, "*@") &&
+	  (strcasecmp(domain, &match[2]) == 0)) return true;
+
+	/* Comparison failed */
+	return false;
+}
+
 #ifndef USE_DB_GETMAIL
-	#define glue_lookupGetmail(address, cd, filename) false
+	#define glue_lookupGetmail(address, domain, cd, filename) false
 #else
-static bool glue_lookupGetmail(char* address, client_data_t* cd,
-  char* filename) {
+static bool glue_lookupGetmail(char* address, char* domain,
+  client_data_t* cd, char* filename) {
 
 	const char *replacements[] = {auth_session.username,
 	  auth_session.home};
@@ -96,7 +113,7 @@ static bool glue_lookupGetmail(char* address, client_data_t* cd,
 					useDefaultPort = false;
 				} else if (strcasecmp(key, "address") == 0) {
 					/* Most interesting thing... */
-					retval = retval | (strcasecmp(address, value) == 0);
+					retval = retval | glue_addrcmp(address, domain, value);
 				} else if (strcasecmp(key, "username") == 0) {
 					util_strcpy(cd->username, value, sizeofMember(client_data_t,
 					  username));
@@ -157,10 +174,10 @@ static bool glue_lookupGetmail(char* address, client_data_t* cd,
 #endif
 
 #ifndef USE_DB_FETCHMAIL
-	#define glue_lookupFetchmail(address, cd, filename) false
+	#define glue_lookupFetchmail(address, domain, cd, filename) false
 #else
-static bool glue_lookupFetchmail(char* address, client_data_t* cd,
-  char* filename) {
+static bool glue_lookupFetchmail(char* address, char *domain,
+  client_data_t* cd, char* filename) {
 
 	const char *replacements[] = {auth_session.username,
 	  auth_session.home};
@@ -177,6 +194,7 @@ static bool glue_lookupFetchmail(char* address, client_data_t* cd,
 
 	bool useDefaultPort  = true;
 	bool useRetrieverAcc = true;
+	bool optionNoAuth    = false;
 
 	cd->secType = secNone;
 	cd->noCertificateCheck = false;
@@ -239,14 +257,20 @@ static bool glue_lookupFetchmail(char* address, client_data_t* cd,
 				cd->secType = secSSL;
 			} else if (strcasecmp(keyword, "#sendooway:noCertCheck") == 0) {
 				cd->noCertificateCheck = true;
+			} else if (strcasecmp(keyword, "#sendooway:noAuth") == 0) {
+				optionNoAuth = true;
 			} else if (strcasecmp(keyword, "#sendooway:server") == 0) {
 				util_strcpy(cd->host, value, sizeofMember(client_data_t, host));
 			} else if (strcasecmp(keyword, "#sendooway:port") == 0) {
 				useDefaultPort = false;
 				util_strcpy(cd->port, value, sizeofMember(client_data_t, port));
 			} else if (strcasecmp(keyword, "#sendooway:address") == 0) {
-				if (strcasecmp(value, address) == 0) {
+				if (glue_addrcmp(address, domain, value)) {
 					fclose(f);
+					if (optionNoAuth) {
+						cd->username[0] = '\0';
+						cd->password[0] = '\0';
+					}
 					if (useDefaultPort) switch (cd->secType) {
 						/* I guess an unsafe server is so old, that it still listens
 						 * on port 25 (Note: 587 is preferred for clients). */
@@ -268,73 +292,103 @@ static bool glue_lookupFetchmail(char* address, client_data_t* cd,
 }
 #endif
 
-static bool glue_lookupList(char* address, client_data_t* cd,
-  options_maplist_t* list) {
+#ifndef USE_DB_SENDOOWAY
+	#define glue_lookupDirect(address, domain, cd, string) false
+#else
+static bool glue_lookupDirect(char* address, char *domain,
+  client_data_t* cd, char* string) {
+
+	/** @todo Parse only once, do not rely on malloc() */
+
+	char *tmpStr = strdup(string);
+	if (!tmpStr) {
+		util_logger(LOG_CRIT, "Out of memory while parsing smarthostMapping"
+		  " for user %u", auth_session.username);
+		return false;
+	}
+
+	char *linePtr = tmpStr;
+
+	if (util_strparse(&linePtr, " ") != ' ') goto failed;
+	if (!glue_addrcmp(address, domain, tmpStr)) goto failed;
+
+	util_strstep(&linePtr, cd->host,
+		sizeofMember(client_data_t, host), ' ');
+	util_strstep(&linePtr, cd->port,
+		sizeofMember(client_data_t, port), ' ');
+	util_strstep(&linePtr, cd->username,
+		sizeofMember(client_data_t, username), ' ');
+	util_strstep(&linePtr, cd->password,
+		sizeofMember(client_data_t, password), ' ');
+
+	cd->secType = secNone;
+	cd->noCertificateCheck = false;
+
+	char *option;
+	while (*linePtr) {
+		option = linePtr;
+		util_strparse(&linePtr, ",");
+
+		if (strcasecmp(option, "noCertCheck") == 0) {
+			cd->noCertificateCheck = true;
+		} else if (strcasecmp(option, "tls") == 0) {
+			cd->secType = secTLS;
+		} else if (strcasecmp(option, "ssl") == 0) {
+			cd->secType = secSSL;
+		} else if (strcasecmp(option, "noauth") == 0) {
+			cd->username[0] = '\0';
+			cd->password[0] = '\0';
+		} else {
+			util_logger(LOG_WARNING, "User %s uses an unrecognized "
+				"configuration option (%s)", auth_session.username,
+				option);
+		}
+	}
+
+	free(tmpStr);
+	return true;
+
+failed:
+	free(tmpStr);
+	return false;
+}
+#endif
+
+static bool glue_lookupList(char *address, char *domain,
+  client_data_t *cd, options_maplist_t *list) {
 
 	for (;list;list = list->next) {
 		switch (list->type) {
 			case mapGetmail:
-				if (glue_lookupGetmail(address, cd, list->string)) return true;
-				break;
+				if (glue_lookupGetmail(address, domain, cd, list->string)) {
+					return true;
+				} else break;
 
 			case mapFetchmail:
-				if (glue_lookupFetchmail(address, cd, list->string))return true;
-				break;
+				if (glue_lookupFetchmail(address, domain, cd, list->string)) {
+					return true;
+				} else break;
 
 			case mapDirect:
-#ifdef USE_DB_SENDOOWAY
-				if (util_strstart(list->string, address)) {
-					char *linePtr = &list->string[strlen(address)];
-
-					/* Expect space */
-					if (*linePtr++ == ' ') {
-						util_strstep(&linePtr, cd->host,
-						  sizeofMember(client_data_t, host), ' ');
-						util_strstep(&linePtr, cd->port,
-						  sizeofMember(client_data_t, port), ' ');
-						util_strstep(&linePtr, cd->username,
-						  sizeofMember(client_data_t, username), ' ');
-						util_strstep(&linePtr, cd->password,
-						  sizeofMember(client_data_t, password), ' ');
-
-						cd->secType = secNone;
-						cd->noCertificateCheck = false;
-
-						char *option;
-						while (*linePtr) {
-							option = linePtr;
-							util_strparse(&linePtr, ",");
-
-							if (strcasecmp(option, "noCertCheck") == 0) {
-								cd->noCertificateCheck = true;
-							} else if (strcasecmp(option, "tls") == 0) {
-								cd->secType = secTLS;
-							} else if (strcasecmp(option, "ssl") == 0) {
-								cd->secType = secSSL;
-							} else {
-								util_logger(LOG_WARNING, "User %s uses an unrecognized "
-									"configuration option (%s)", auth_session.username,
-									option);
-							}
-						}
-
-						return true;
-					}
-				}
-#endif
-				break;
+				if (glue_lookupDirect(address, domain, cd, list->string)) {
+					return true;
+				} else break;
 		}
 	}
 
 	return false;
 }
 
-bool glue_lookup(char* address, client_data_t* cd) {
+bool glue_lookup(char* address, char *domain, client_data_t* cd) {
 	/* Search user mappings */
-	if (glue_lookupList(address, cd, options.userMappings)) return true;
+	if (glue_lookupList(address, domain, cd, options.userMappings)) {
+		return true;
+	}
 
 	/* Search global mappings */
-	if (glue_lookupList(address, cd, options.globalMappings)) return true;
+	if (glue_lookupList(address, domain, cd, options.globalMappings)) {
+		return true;
+	}
 
 	/* Nothing was found */
 	return false;
