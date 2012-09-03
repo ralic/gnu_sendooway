@@ -103,24 +103,24 @@ static bool glue_lookupGetmail(char* address, char* domain,
 		switch (section) {
 			case secSender:
 				if (strcasecmp(key, "server") == 0) {
-					util_strcpy(cd->host, value, sizeofMember(client_data_t,
-					  host));
+					util_strfree(&cd->host, false);
+					cd->host = strdup(value); /* NULL okay */
 					useRetrieverServer = false;
 				} else if (strcasecmp(key, "port") == 0) {
-					util_strcpy(cd->port, value, sizeofMember(client_data_t,
-					  port));
+					util_strfree(&cd->port, false);
+					cd->port = strdup(value); /* NULL okay */
 					useRetrieverServer = false;
 					useDefaultPort = false;
 				} else if (strcasecmp(key, "address") == 0) {
 					/* Most interesting thing... */
 					retval = retval | glue_addrcmp(address, domain, value);
 				} else if (strcasecmp(key, "username") == 0) {
-					util_strcpy(cd->username, value, sizeofMember(client_data_t,
-					  username));
+					util_strfree(&cd->username, false);
+					cd->username = strdup(value); /* NULL okay */
 					useRetrieverAcc = false;
 				} else if (strcasecmp(key, "password") == 0) {
-					util_strcpy(cd->password, value, sizeofMember(client_data_t,
-					  password));
+					util_strfree(&cd->password, true);
+					cd->password = strdup(value); /* NULL okay */
 					useRetrieverAcc = false;
 				} else if (strcasecmp(key, "type") == 0) {
 					if (strcasecmp(value, "SimpleSMTPTLSSender") == 0)
@@ -140,16 +140,22 @@ static bool glue_lookupGetmail(char* address, char* domain,
 
 			case secRetriever:
 				if (useRetrieverServer) {
-					if (strcasecmp(key, "server") == 0) util_strcpy(
-					  cd->host, value, sizeofMember(client_data_t, host));
-					else if (strcasecmp(key, "port") == 0) util_strcpy(
-					  cd->port, value, sizeofMember(client_data_t, port));
+					if (strcasecmp(key, "server") == 0) {
+						util_strfree(&cd->host, false);
+						cd->host = strdup(value); /* NULL okay */
+					} else if (strcasecmp(key, "port") == 0) {
+						util_strfree(&cd->port, false);
+						cd->port = strdup(value); /* NULL okay */
+					}
 				}
 				if (useRetrieverAcc) {
-					if (strcasecmp(key, "username") == 0) util_strcpy(
-					  cd->username, value, sizeofMember(client_data_t, username));
-					else if (strcasecmp(key, "password") == 0) util_strcpy(
-					  cd->password, value, sizeofMember(client_data_t, password));
+					if (strcasecmp(key, "username") == 0) {
+						util_strfree(&cd->username, false);
+						cd->username = strdup(value); /* NULL okay */
+					} else if (strcasecmp(key, "password") == 0) {
+						util_strfree(&cd->password, true);
+						cd->password = strdup(value); /* NULL okay */
+					}
 				}
 				break;
 
@@ -160,14 +166,15 @@ static bool glue_lookupGetmail(char* address, char* domain,
 	fclose(f);
 
 	if (retval) {
+		if (useDefaultPort) util_strfree(&cd->port, false);
 		if (useDefaultPort) switch (cd->secType) {
 			/* I guess an unsafe server is so old, that it still listens
 			 * on port 25 (Note: 587 is preferred for clients). */
-			case secNone: strcpy(cd->port, "25");  break;
-			case secTLS:  strcpy(cd->port, "587"); break;
-			case secSSL:  strcpy(cd->port, "465"); break;
+			case secNone: cd->port = strdup("25"); break;  /* NULL ok */
+			case secTLS:  cd->port = strdup("587"); break; /* NULL ok */
+			case secSSL:  cd->port = strdup("465"); break; /* NULL ok */
 		}
-	} else memset(cd->password, 0, sizeofMember(client_data_t, password));
+	} else util_strfree(&cd->password, true);
 
 	return retval;
 }
@@ -237,20 +244,23 @@ static bool glue_lookupFetchmail(char* address, char *domain,
 
 			/* Analyze */
 			if (useRetrieverAcc) {
-				if (strcasecmp(keyword, "user") == 0) util_strcpy(cd->username,
-				  value, sizeofMember(client_data_t, username));
-				else if (strcasecmp(keyword, "pass") == 0) util_strcpy(
-				  cd->password, value, sizeofMember(client_data_t, password));
+				if (strcasecmp(keyword, "user") == 0) {
+					util_strfree(&cd->username, false);
+					cd->username = strdup(value); /* NULL okay */
+				} else if (strcasecmp(keyword, "pass") == 0) {
+					util_strfree(&cd->password, true);
+					cd->password = strdup(value); /* NULL okay */
+				}
 			}
 
 			if (strcasecmp(keyword, "#sendooway:user") == 0) {
 				useRetrieverAcc = false;
-				util_strcpy(cd->username, value, sizeofMember(client_data_t,
-				  username));
+				util_strfree(&cd->username, false);
+				cd->username = strdup(value); /* NULL okay */
 			} else if (strcasecmp(keyword, "#sendooway:pass") == 0) {
 				useRetrieverAcc = false;
-				util_strcpy(cd->password, value, sizeofMember(client_data_t,
-				  password));
+				util_strfree(&cd->password, true);
+				cd->password = strdup(value); /* NULL okay */
 			} else if (strcasecmp(keyword, "#sendooway:tls") == 0) {
 				cd->secType = secTLS;
 			} else if (strcasecmp(keyword, "#sendooway:ssl") == 0) {
@@ -260,23 +270,26 @@ static bool glue_lookupFetchmail(char* address, char *domain,
 			} else if (strcasecmp(keyword, "#sendooway:noAuth") == 0) {
 				optionNoAuth = true;
 			} else if (strcasecmp(keyword, "#sendooway:server") == 0) {
-				util_strcpy(cd->host, value, sizeofMember(client_data_t, host));
+				util_strfree(&cd->host, false);
+				cd->host = strdup(value); /* NULL okay */
 			} else if (strcasecmp(keyword, "#sendooway:port") == 0) {
 				useDefaultPort = false;
-				util_strcpy(cd->port, value, sizeofMember(client_data_t, port));
+				util_strfree(&cd->port, false);
+				cd->port = strdup(value); /* NULL okay */
 			} else if (strcasecmp(keyword, "#sendooway:address") == 0) {
 				if (glue_addrcmp(address, domain, value)) {
 					fclose(f);
 					if (optionNoAuth) {
-						cd->username[0] = '\0';
-						cd->password[0] = '\0';
+						util_strfree(&cd->username, false);
+						util_strfree(&cd->password, true);
 					}
+					if (useDefaultPort) util_strfree(&cd->port, false);
 					if (useDefaultPort) switch (cd->secType) {
 						/* I guess an unsafe server is so old, that it still listens
 						 * on port 25 (Note: 587 is preferred for clients). */
-						case secNone: strcpy(cd->port, "25");  break;
-						case secTLS:  strcpy(cd->port, "587"); break;
-						case secSSL:  strcpy(cd->port, "465"); break;
+						case secNone: cd->port = strdup("25"); break;  /* NULL ok */
+						case secTLS:  cd->port = strdup("587"); break; /* NULL ok */
+						case secSSL:  cd->port = strdup("465"); break; /* NULL ok */
 					}
 					return true;
 				}
@@ -287,7 +300,7 @@ static bool glue_lookupFetchmail(char* address, char *domain,
 	}
 
 	fclose(f);
-	memset(cd->password, 0, sizeofMember(client_data_t, password));
+	util_strfree(&cd->password, true);
 	return false;
 }
 #endif
@@ -312,14 +325,31 @@ static bool glue_lookupDirect(char* address, char *domain,
 	if (util_strparse(&linePtr, " ") != ' ') goto failed;
 	if (!glue_addrcmp(address, domain, tmpStr)) goto failed;
 
-	util_strstep(&linePtr, cd->host,
-		sizeofMember(client_data_t, host), ' ');
-	util_strstep(&linePtr, cd->port,
-		sizeofMember(client_data_t, port), ' ');
-	util_strstep(&linePtr, cd->username,
-		sizeofMember(client_data_t, username), ' ');
-	util_strstep(&linePtr, cd->password,
-		sizeofMember(client_data_t, password), ' ');
+	/** @todo Replace util_strstep() */
+	{
+		char tmp[255];
+		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
+		util_strfree(&cd->host, false);
+		cd->host = strdup(tmp); /* NULL okay */
+	}
+	{
+		char tmp[255];
+		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
+		util_strfree(&cd->port, false);
+		cd->port = strdup(tmp); /* NULL okay */
+	}
+	{
+		char tmp[255];
+		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
+		util_strfree(&cd->username, false);
+		cd->username = strdup(tmp); /* NULL okay */
+	}
+	{
+		char tmp[255];
+		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
+		util_strfree(&cd->password, true);
+		cd->password = strdup(tmp); /* NULL okay */
+	}
 
 	cd->secType = secNone;
 	cd->noCertificateCheck = false;
@@ -336,8 +366,8 @@ static bool glue_lookupDirect(char* address, char *domain,
 		} else if (strcasecmp(option, "ssl") == 0) {
 			cd->secType = secSSL;
 		} else if (strcasecmp(option, "noauth") == 0) {
-			cd->username[0] = '\0';
-			cd->password[0] = '\0';
+			util_strfree(&cd->username, false);
+			util_strfree(&cd->password, true);
 		} else {
 			util_logger(LOG_WARNING, "User %s uses an unrecognized "
 				"configuration option (%s)", auth_session.username,

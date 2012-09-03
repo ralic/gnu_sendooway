@@ -73,6 +73,11 @@ static bool client_sslVerifyCertificate(client_data_t *cd) {
 
 	if (gnutls_x509_crt_get_expiration_time(cert) < time(NULL)) goto fail;
 	if (gnutls_x509_crt_get_activation_time(cert) > time(NULL)) goto fail;
+	if (!cd->host) {
+		/* Should never happen */
+		util_logger(LOG_CRIT, "BUG: hostname lost during session");
+		goto fail;
+	}
 	if (!gnutls_x509_crt_check_hostname (cert, cd->host)) goto fail;
 
 	/* Verified */
@@ -328,6 +333,7 @@ static bool client_connectSocket(client_data_t* cd) {
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_family = AF_INET;
+	if (!cd->host || !cd->port) return false;
 	if (getaddrinfo(cd->host, cd->port, &hints, &res) != 0) return false;
 
 	cd->sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -377,7 +383,7 @@ bool client_connect(client_data_t* cd) {
 	/* Force 8BITMIME? */
 	if (!cd->ext8bit && (options.ext8bitmime == e8bForce)) goto fail;
 
-	if (cd->username[0] != '\0') {
+	if (cd->username && cd->password) {
 		if (client_authCramMD5(cd)) return true;
 		if (client_authPlain(cd)) return true;
 		if (client_authLogin(cd)) return true;

@@ -43,10 +43,10 @@ typedef struct client_data_t {
 	bool ext8bit;
 
 	char ehlo[255];
-	char host[255];
-	char port[255];
-	char username[255];
-	char password[255];
+	char *host;
+	char *port;
+	char *username;
+	char *password;
 } client_data_t;
 
 #include "util.h"
