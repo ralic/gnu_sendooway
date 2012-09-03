@@ -60,10 +60,9 @@ static bool glue_lookupGetmail(char* address, char* domain,
 	free(filename);
 	if (!f) return false;
 
-	enum {secUnknown, secRetriever, secSender} section = secUnknown;
-	bool useDefaultPort     = true;
-	bool useRetrieverServer = true;
-	bool useRetrieverAcc    = true;
+	struct data_t {
+		char *host, *port, *user, *pass;
+	} rStruct = {0,0,0,0}, sStruct = {0,0,0,0}, *section = NULL;
 	bool retval = false;
 
 	while (!feof(f)) {
@@ -72,9 +71,9 @@ static bool glue_lookupGetmail(char* address, char* domain,
 		if (!fgets(key, sizeof(key), f)) break;
 
 		if (key[0] == '[') {
-			if (util_strstart(key, "[retriever]")) section = secRetriever;
-			else if (util_strstart(key, "[sender]")) section = secSender;
-			else section = secUnknown;
+			if (util_strstart(key, "[retriever]")) section = &rStruct;
+			else if (util_strstart(key, "[sender]")) section = &sStruct;
+			else section = NULL;
 		} else if (key[0] == '=') continue;
 
 		value = strchr(key, '=');
@@ -100,81 +99,71 @@ static bool glue_lookupGetmail(char* address, char* domain,
 			value[last+1] = '\0';
 		}
 
-		switch (section) {
-			case secSender:
-				if (strcasecmp(key, "server") == 0) {
-					util_strfree(&cd->host, false);
-					cd->host = strdup(value); /* NULL okay */
-					useRetrieverServer = false;
-				} else if (strcasecmp(key, "port") == 0) {
-					util_strfree(&cd->port, false);
-					cd->port = strdup(value); /* NULL okay */
-					useRetrieverServer = false;
-					useDefaultPort = false;
-				} else if (strcasecmp(key, "address") == 0) {
+		if (section) {
+			if (strcasecmp(key, "server") == 0) {
+				if (!section->host) section->host = strdup(value); /* NULL ok */
+			} else if (strcasecmp(key, "port") == 0) {
+				if (!section->port) section->port = strdup(value); /* NULL ok */
+			} else if (strcasecmp(key, "username") == 0) {
+				if (!section->user) section->user = strdup(value); /* NULL ok */
+			} else if (strcasecmp(key, "password") == 0) {
+				if (!section->pass) section->pass = strdup(value); /* NULL ok */
+			}
+
+			if (section == &sStruct) {
+				if (strcasecmp(key, "address") == 0) {
 					/* Most interesting thing... */
 					retval = retval | glue_addrcmp(address, domain, value);
-				} else if (strcasecmp(key, "username") == 0) {
-					util_strfree(&cd->username, false);
-					cd->username = strdup(value); /* NULL okay */
-					useRetrieverAcc = false;
-				} else if (strcasecmp(key, "password") == 0) {
-					util_strfree(&cd->password, true);
-					cd->password = strdup(value); /* NULL okay */
-					useRetrieverAcc = false;
 				} else if (strcasecmp(key, "type") == 0) {
 					if (strcasecmp(value, "SimpleSMTPTLSSender") == 0)
-					  cd->secType = secTLS;
+						cd->secType = secTLS;
 					else if (strcasecmp(value, "SimpleSMTPSSLSender") == 0)
-					  cd->secType = secSSL;
+						cd->secType = secSSL;
 					else if (strcasecmp(value, "SimpleSMTPSender") == 0)
-					  cd->secType = secNone;
+						cd->secType = secNone;
 				} else if (strcasecmp(key, "no_certificate_check") == 0) {
 					cd->noCertificateCheck =
-					  (strcasecmp(value, "true") == 0) ||
-					  (strcasecmp(value, "on")   == 0) ||
-					  (strcasecmp(value, "yes")  == 0) ||
-					  (strcasecmp(value, "1")    == 0);
+						(strcasecmp(value, "true") == 0) ||
+						(strcasecmp(value, "on")   == 0) ||
+						(strcasecmp(value, "yes")  == 0) ||
+						(strcasecmp(value, "1")    == 0);
 				}
-				break;
-
-			case secRetriever:
-				if (useRetrieverServer) {
-					if (strcasecmp(key, "server") == 0) {
-						util_strfree(&cd->host, false);
-						cd->host = strdup(value); /* NULL okay */
-					} else if (strcasecmp(key, "port") == 0) {
-						util_strfree(&cd->port, false);
-						cd->port = strdup(value); /* NULL okay */
-					}
-				}
-				if (useRetrieverAcc) {
-					if (strcasecmp(key, "username") == 0) {
-						util_strfree(&cd->username, false);
-						cd->username = strdup(value); /* NULL okay */
-					} else if (strcasecmp(key, "password") == 0) {
-						util_strfree(&cd->password, true);
-						cd->password = strdup(value); /* NULL okay */
-					}
-				}
-				break;
-
-			default:
-				break;
+			}
 		}
 	}
 	fclose(f);
 
 	if (retval) {
-		if (useDefaultPort) util_strfree(&cd->port, false);
-		if (useDefaultPort) switch (cd->secType) {
+		util_strfree(&cd->host, false);
+		util_strfree(&cd->port, false);
+		util_strfree(&cd->username, false);
+		util_strfree(&cd->password, true);
+
+		if (sStruct.host) util_swap(sStruct.host, cd->host, char*);
+		  else util_swap(rStruct.host, cd->host, char*);
+
+		if (sStruct.port) util_swap(sStruct.port, cd->port, char*);
+		  else util_swap(rStruct.port, cd->port, char*);
+
+		if (sStruct.user) util_swap(sStruct.user, cd->username, char*);
+		  else util_swap(rStruct.user, cd->username, char*);
+
+		if (sStruct.pass) util_swap(sStruct.pass, cd->password, char*);
+		  else util_swap(rStruct.pass, cd->password, char*);
+
+		if (!cd->port) switch (cd->secType) {
 			/* I guess an unsafe server is so old, that it still listens
 			 * on port 25 (Note: 587 is preferred for clients). */
 			case secNone: cd->port = strdup("25"); break;  /* NULL ok */
 			case secTLS:  cd->port = strdup("587"); break; /* NULL ok */
 			case secSSL:  cd->port = strdup("465"); break; /* NULL ok */
 		}
-	} else util_strfree(&cd->password, true);
+	}
+
+	util_strfree(&sStruct.host, false);util_strfree(&rStruct.host, false);
+	util_strfree(&sStruct.port, false);util_strfree(&rStruct.port, false);
+	util_strfree(&sStruct.user, false);util_strfree(&rStruct.user, false);
+	util_strfree(&sStruct.pass, true); util_strfree(&rStruct.host, true);
 
 	return retval;
 }
@@ -212,7 +201,7 @@ static bool glue_lookupFetchmail(char* address, char *domain,
 
 		char *keyword = buf;
 		while (1) {
-			/** @todo Adapt and use util_strstep() here */
+			/** @todo Adapt and use util_strparse() here */
 			/* Trim keyword left */
 			while ((*keyword == ' ') || (*keyword == '\t')) keyword++;
 			if (!*keyword) break;
@@ -320,36 +309,26 @@ static bool glue_lookupDirect(char* address, char *domain,
 		return false;
 	}
 
-	char *linePtr = tmpStr;
+	char *value, *linePtr = tmpStr;
 
 	if (util_strparse(&linePtr, " ") != ' ') goto failed;
 	if (!glue_addrcmp(address, domain, tmpStr)) goto failed;
 
-	/** @todo Replace util_strstep() */
-	{
-		char tmp[255];
-		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
-		util_strfree(&cd->host, false);
-		cd->host = strdup(tmp); /* NULL okay */
-	}
-	{
-		char tmp[255];
-		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
-		util_strfree(&cd->port, false);
-		cd->port = strdup(tmp); /* NULL okay */
-	}
-	{
-		char tmp[255];
-		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
-		util_strfree(&cd->username, false);
-		cd->username = strdup(tmp); /* NULL okay */
-	}
-	{
-		char tmp[255];
-		util_strstep(&linePtr, tmp, sizeof(tmp), ' ');
-		util_strfree(&cd->password, true);
-		cd->password = strdup(tmp); /* NULL okay */
-	}
+	value = linePtr;
+	if (util_strparse(&linePtr, " ") != ' ') goto failed;
+	cd->host = strdup(value); /* NULL okay */
+
+	value = linePtr;
+	if (util_strparse(&linePtr, " ") != ' ') goto failed;
+	cd->port = strdup(value); /* NULL okay */
+
+	value = linePtr;
+	if (util_strparse(&linePtr, " ") != ' ') goto failed;
+	cd->username = strdup(value); /* NULL okay */
+
+	value = linePtr;
+	if (util_strparse(&linePtr, " ") != ' ') goto failed;
+	cd->password = strdup(value); /* NULL okay */
 
 	cd->secType = secNone;
 	cd->noCertificateCheck = false;

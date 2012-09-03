@@ -161,17 +161,6 @@ char util_strparse(char **longstr, const char *delims) {
 	return retval;
 }
 
-bool util_strstep(char** longstr, char* next, int maxlen, char delim) {
-	while ((**longstr != '\0') && (**longstr != delim) && (maxlen--)) {
-		if (next) *next++ = **longstr;
-		*longstr += 1;
-	}
-	if (next) *next = '\0';
-
-	if (!delim || **longstr) *longstr += 1;
-	return (**longstr != '\0');
-}
-
 int util_readline(ssize_t(*reader)(void*, char*, size_t), void* p,
   char* line, size_t *size) {
 

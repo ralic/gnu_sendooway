@@ -310,9 +310,10 @@ static bool client_sendEhlo(client_data_t* cd) {
 		else if (util_strstart(&line[4], "SIZE"))  cd->extSize = true;
 		else if (util_strstart(&line[4], "AUTH ")) {
 			char *ls = &line[4 + 5];
-			char auth[16];
+			char *auth;
+			while (*(auth = ls)) {
+				util_strparse(&ls, " ");
 
-			while (util_strstep(&ls, auth, sizeof(auth), ' ')) {
 				if (strcasecmp(auth, "CRAM-MD5") == 0)   cd->authCramMD5 = true;
 				else if (strcasecmp(auth, "LOGIN") == 0) cd->authLogin   = true;
 				else if (strcasecmp(auth, "PLAIN") == 0) cd->authPlain   = true;

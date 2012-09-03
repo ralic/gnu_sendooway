@@ -157,6 +157,11 @@ proxy_doFromError_t proxy_doFrom(proxy_connection_t* pc,
 	return pdfeNone;
 }
 
+static proxy_connection_t* proxy_newConnection() {
+	proxy_connection_t* ret = calloc(1, sizeof(proxy_connection_t));
+	return ret;
+}
+
 void proxy_resetConnection(proxy_connection_t* pc) {
 	client_disconnect(&pc->client);
 	memset(&pc->client, sizeofMember(proxy_connection_t, client), 0);

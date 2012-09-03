@@ -273,14 +273,20 @@ static smtp_reply_t server_doAuthPlain(server_data_t* sd,
 	respLen = util_base64decode(response, respLen, NULL);
 	if (!respLen) return replySyntaxArg;
 
-	util_strstep(&response, NULL, respLen, 0);
+	do {
+		if (!--respLen) return replySyntaxArg;
+	} while (*response++) ;
 
 	util_strfree(username, false);
 	*username = strdup(response);
 	if (!*username) {
 		util_logger(LOG_CRIT, "Unable to allocate memory for username");
 		return replySyntaxArg;
-	} else util_strstep(&response, NULL, respLen, 0);
+	}
+
+	do {
+		if (!--respLen) return replySyntaxArg;
+	} while (*response++) ;
 
 	util_strfree(password, true);
 	*password = strdup(response);

@@ -49,6 +49,21 @@
 	(a_ > b_) ? a_ : b_; })
 
 /**
+ * @brief Swap value of two variables
+ *
+ * @param A    : first variable
+ * @param B    : second variable
+ * @param TYPE : type of A and B
+ *
+ * @return Nothing
+ */
+#define util_swap(A, B, TYPE) do { \
+		TYPE t = A;                    \
+		A = B;                         \
+		B = t;                         \
+	} while (0)
+
+/**
  * @brief Sets the destination for logging messages
  *
  * @param *name : NULL for syslog, "&1" for stdout, "&2" for stderr
@@ -136,9 +151,6 @@ char* util_strreplace(char *string, const char *tokens,
  * @return matched delimiter
  */
 char util_strparse(char **longstr, const char *delims);
-
-/** @deprecated Use util_strparse() instead (slower, but more robust) */
-bool util_strstep(char** longstr, char* next, int maxlen, char delim);
 
 #define URL_READ_GARBAGE (1)
 #define URL_LINE_TOOLONG (2)
