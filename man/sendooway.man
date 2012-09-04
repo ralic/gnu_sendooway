@@ -21,7 +21,7 @@ Sendooway \- a multi-user and multi-target SMTP proxy
 
 .SH SYNOPSIS
 .B sendooway
-[\-h] [\-s] [\-S] [\-c configfile] [\-V]
+[\-h] [\-V] [\-s] [\-S] [\-c CONFIGFILE] [\-b PORT] [\-l LOGFILE]
 
 .SH DESCRIPTION
 Comfortable mail clients allow using more than one identity when
@@ -71,7 +71,9 @@ smarthosts) your passwords are already available ;)
 .SH INVOCATION
 Per default \fBSendooway\fP is started as root by \fBxinetd\fP(1) or any
 other super-server daemon when the mail client is establishing a
-connection. It then asks PAM to authenticate against the local user
+connection. With the \fI\-\-bind\fP argument, \fBSendooway\fP can also
+listen for incoming connections by itself. It then asks PAM to
+authenticate against the local user
 database, reads your \fI~/.sendoowayrc\fP, \fI~/.fetchmailrc\fP and/or
 getmailrc-files and redirects all incoming and outgoing traffic to your
 specific SMTP server. Thereby \fBSendooway\fP does not violate any
@@ -89,7 +91,7 @@ just display a short help text
 consider connection safe (disable STARTTLS command)
 .PP
 .RS
-If your super-server already encrypts the connection, \fBSendooway\fP
+If a super-server already encrypts the connection, \fBSendooway\fP
 must refuse to initialize a second handshake. This option notifies
 \fBSendooway\fP that it must not insist on the \fISTARTTLS\fP command
 neither allow its use. It also overrides the global
@@ -106,10 +108,13 @@ Nevertheless you can instruct \fBSendooway\fP to fail on unencrypted
 channels.
 .RE
 .TP
-.B \-c \--config CONFIG
-load configuration from CONFIG
+.B \-c \--config CONFIGFILE
+load configuration from CONFIGFILE
 (default: \fI/etc/sendooway.conf\fP). See \fBsendooway.conf\fP(5) for an
 example.
+.TP
+.B \-b \--bind PORT
+bind and listen on tcp port PORT
 .TP
 .B \-l \--log LOGFILE
 do not use syslog but append log data to LOGFILE
@@ -130,12 +135,13 @@ sendooway -c /dev/null -l \\&2
 .fi
 .RE
 .PP
-The following example uses \fBnetcat\fP(1) to serve one single client
-connection on port 587:
+The following example instructs Sendooway to bind on port 587 listening
+for incoming tcp connections. Additionally, logging output is appended
+to a system-wide logfile:
 .PP
 .RS
 .nf
-nc -l -p 587 -e $(which sendooway)
+sendooway -b 587 -l /var/log/sendooway.log
 .fi
 .RE
 .PP

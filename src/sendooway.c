@@ -17,6 +17,7 @@
  * along with Sendooway.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "config.h"
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -26,7 +27,9 @@
 
 static int printHelp() {
 	puts(
-		"Syntax: sendooway [-h] [-v] [-s] [-S] [-c CONFIG] [-l LOGFILE]\n"
+		"Syntax: sendooway [-h]\n"
+		"        sendooway [-V]\n"
+		"        sendooway [-s|-S] [-c CONFIG] [-b PORT] [-l LOGFILE]\n"
 		"\n"
 		"  -h    just display a short help text\n"
 #ifdef HAVE_GNUTLS
@@ -35,6 +38,7 @@ static int printHelp() {
 #endif
 		"  -c    load configuration from CONFIG\n"
 		"        (default: "SYSCONFDIR"/sendooway.conf)\n"
+		"  -b    bind and listen on tcp port PORT\n"
 		"  -l    do not use syslog but append log data to LOGFILE\n"
 		"  -V    print program version and exit\n"
 		"\n"
@@ -66,20 +70,22 @@ static const struct option longopts[] = {
 	{"nossl", no_argument, NULL, 'S'},
 	{"help", no_argument, NULL, 'h'},
 	{"version", no_argument, NULL, 'V'},
+	{"bind", required_argument, NULL, 'b'},
 	{"config", required_argument, NULL, 'c'},
 	{NULL, 0, NULL, 0}
 };
 
 #ifdef HAVE_GNUTLS
-static const char* shortopts = "+hVc:sSl:";
+static const char* shortopts = "+hVb:c:sSl:";
 #else
 /* -S is silently accepted, because it does not need GnuTLS */
-static const char* shortopts = "+hVc:Sl:";
+static const char* shortopts = "+hVb:c:Sl:";
 #endif
 
 int main(int argc, char** argv) {
 	char *configfile = SYSCONFDIR"/sendooway.conf";
 	enum {sslOff, sslSession, sslDisable} ssl = sslOff;
+	char *bindPort = NULL;
 
 	/* Command line options */
 	do {
@@ -95,6 +101,7 @@ int main(int argc, char** argv) {
 			case 'l': util_setLogger(optarg); break;
 			case 'h': return printHelp();
 			case 'V': return printVer();
+			case 'b': bindPort = optarg; break;
 			case 'c': configfile = optarg; break;
 			default:  return EXIT_FAILURE;
 		}
@@ -114,13 +121,21 @@ int main(int argc, char** argv) {
 		default:         break;
 	}
 
+	/* Prepare to daemonize? */
+	if (bindPort) {
+		/** @todo Speed up by preparing GnuTLS here */
+
+		if (!daemon_bind(bindPort)) return EXIT_FAILURE;
+		/* Forked, client connected to stdin/stdout! */
+	}
+
 	/* Start the proxy */
 #ifdef HAVE_GNUTLS
 	gnutls_global_init();
-	proxy_handle(ssl == sslSession, 0, 1);
+	proxy_handle(ssl == sslSession, STDIN_FILENO, STDOUT_FILENO);
 	gnutls_global_deinit();
 #else
-	proxy_handle(false, 0, 1);
+	proxy_handle(false, STDIN_FILENO, STDOUT_FILENO);
 #endif
 
 	return EXIT_SUCCESS;

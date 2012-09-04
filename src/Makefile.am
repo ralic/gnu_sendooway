@@ -6,6 +6,7 @@
 bin_PROGRAMS = sendooway
 sendooway_SOURCES = auth.c auth.h \
 	client.c client.h \
+	daemon.c daemon.h \
 	glue.c glue.h \
 	md5.c md5.h \
 	options.c options.h \
