@@ -49,7 +49,8 @@ ssize_t server_write(struct server_data_t *sd, char* buf,
 	return write(sd->out, buf, buflen);
 }
 
-#define server_sslPrepare(...) (false)
+
+bool server_sslPrepare(server_data_t *sd) {return false;}
 bool server_sslHandshake(server_data_t *sd) {return false;}
 
 #else
@@ -76,7 +77,7 @@ ssize_t server_write(struct server_data_t *sd, char* buf,
 	return gnutls_record_send(sd->session, buf, buflen);
 }
 
-static bool server_sslPrepare(server_data_t *sd) {
+bool server_sslPrepare(server_data_t *sd) {
 	if (!sd->tlsInitDone) {
 		/* These settings are global */
 		gnutls_certificate_allocate_credentials(&sd->xcred);

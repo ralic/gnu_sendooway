@@ -49,6 +49,7 @@ ssize_t server_read(void* p, char *buf, size_t buflen);
 #define server_writes(sd, str) server_write(sd, str, strlen(str))
 ssize_t server_write(struct server_data_t *sd, char* buf, size_t buflen);
 
+bool server_sslPrepare(server_data_t *sd);
 bool server_sslHandshake(server_data_t *sd);
 void server_handle(server_data_t *sd, void *ptr);
 

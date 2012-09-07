@@ -157,8 +157,12 @@ proxy_doFromError_t proxy_doFrom(proxy_connection_t* pc,
 	return pdfeNone;
 }
 
-static proxy_connection_t* proxy_newConnection() {
+proxy_connection_t* proxy_newConnection(bool earlySSLprepare) {
 	proxy_connection_t* ret = calloc(1, sizeof(proxy_connection_t));
+
+	/* We don't guarantee sslPrepare to succeed, so don't check retval */
+	if (ret && earlySSLprepare) server_sslPrepare(&ret->server);
+
 	return ret;
 }
 
@@ -167,14 +171,13 @@ void proxy_resetConnection(proxy_connection_t* pc) {
 	memset(&pc->client, sizeofMember(proxy_connection_t, client), 0);
 }
 
-static void proxy_freeConnection(proxy_connection_t* pc) {
+void proxy_freeConnection(proxy_connection_t* pc) {
 	if (!pc) return;
 	client_disconnect(&pc->client);
 	free(pc);
 }
 
-void proxy_handle(bool ssl, int pin, int pout) {
-	proxy_connection_t *pc = proxy_newConnection();
+void proxy_handle(proxy_connection_t* pc, bool ssl, int pin, int pout) {
 	pc->server.in  = pin;
 	pc->server.out = pout;
 
@@ -182,6 +185,4 @@ void proxy_handle(bool ssl, int pin, int pout) {
 	if (ssl && server_sslHandshake(&pc->server)) ssl = false;
 
 	if (!ssl) server_handle(&pc->server, pc);
-
-	proxy_freeConnection(pc);
 }

@@ -121,22 +121,27 @@ int main(int argc, char** argv) {
 		default:         break;
 	}
 
+#ifdef HAVE_GNUTLS
+	gnutls_global_init();
+#endif
+
+	proxy_connection_t *pc = proxy_newConnection(bindPort);
+
 	/* Prepare to daemonize? */
 	if (bindPort) {
-		/** @todo Speed up by preparing GnuTLS here */
-
 		if (!daemon_bind(bindPort)) return EXIT_FAILURE;
 		/* Forked, client connected to stdin/stdout! */
 	}
 
 	/* Start the proxy */
 #ifdef HAVE_GNUTLS
-	gnutls_global_init();
-	proxy_handle(ssl == sslSession, STDIN_FILENO, STDOUT_FILENO);
+	proxy_handle(pc, ssl == sslSession, STDIN_FILENO, STDOUT_FILENO);
 	gnutls_global_deinit();
 #else
-	proxy_handle(false, STDIN_FILENO, STDOUT_FILENO);
+	proxy_handle(pc, false, STDIN_FILENO, STDOUT_FILENO);
 #endif
+
+	proxy_freeConnection(pc);
 
 	return EXIT_SUCCESS;
 }

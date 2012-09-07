@@ -53,7 +53,9 @@ static inline void proxy_setEhlo(proxy_connection_t* pc,
 	  sizeofMember(proxy_connection_t, client.ehlo));
 }
 
+proxy_connection_t* proxy_newConnection(bool earlySSLprepare);
+void proxy_freeConnection(proxy_connection_t* pc);
 void proxy_resetConnection(proxy_connection_t* pc);
-void proxy_handle(bool ssl, int pin, int pout);
+void proxy_handle(proxy_connection_t* pc, bool ssl, int pin, int pout);
 
 #endif
