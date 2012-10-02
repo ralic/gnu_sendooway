@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
 	gnutls_global_init();
 #endif
 
-	proxy_connection_t *pc = proxy_newConnection(bindPort);
+	proxy_connection_t *pc = proxy_newConnection(bindPort != NULL);
 
 	/* Prepare to daemonize? */
 	if (bindPort) {

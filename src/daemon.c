@@ -92,8 +92,8 @@ bool daemon_bind(char *bindPort) {
 					return daemon_accept(s);
 				} else util_logger(LOG_CRIT, "Unable to listen on socket");
 			} else util_logger(LOG_CRIT, "Unable to bind socket");
+			close(s);
 		} else util_logger(LOG_CRIT, "Unable to create socket");
-		close(s);
 	} else util_logger(LOG_CRIT, "Unknown port name: %s", bindPort);
 
 	return false;
