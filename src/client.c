@@ -30,8 +30,8 @@
 #include "options.h"
 
 #ifndef HAVE_GNUTLS
-ssize_t client_write(client_data_t* cd, char* buf, size_t buflen) {
-	return write(cd->sd, buf, buflen);
+static void client_send(client_data_t* cd, char* buf, size_t buflen) {
+	write(cd->sd, buf, buflen);
 }
 
 ssize_t client_read(void* p, char *buf, size_t buflen) {
@@ -43,9 +43,9 @@ ssize_t client_read(void* p, char *buf, size_t buflen) {
 #define client_sslHandshake(...)         (false)
 
 #else
-ssize_t client_write(client_data_t* cd, char* buf, size_t buflen) {
-	if (!cd->tlsEnabled) return write(cd->sd, buf, buflen);
-	return gnutls_record_send(cd->session, buf, buflen);
+static void client_send(client_data_t* cd, char* buf, size_t buflen) {
+	if (!cd->tlsEnabled) write(cd->sd, buf, buflen);
+	else gnutls_record_send(cd->session, buf, buflen);
 }
 
 ssize_t client_read(void* p, char *buf, size_t buflen) {
@@ -136,6 +136,32 @@ static bool client_sslHandshake(client_data_t* cd) {
 	return true;
 }
 #endif
+
+static void client_flush(client_data_t* cd) {
+	if (cd->lineBufferPos > 0) {
+		client_send(cd, cd->lineBuffer, cd->lineBufferPos);
+		cd->lineBufferPos = 0;
+	}
+}
+
+void client_write(client_data_t* cd, char* buf, size_t buflen) {
+	size_t size = sizeof(cd->lineBuffer) - cd->lineBufferPos;
+
+	if (size < buflen) {
+		client_flush(cd);
+		size = sizeof(cd->lineBuffer);
+	}
+
+	if (size > buflen) {
+		bool flush = false;
+		while (buflen--) {
+			cd->lineBuffer[cd->lineBufferPos] = *buf++;
+			flush |= (cd->lineBuffer[cd->lineBufferPos++] == '\n');
+		}
+		if (flush) client_flush(cd);
+
+	} else client_send(cd, buf, buflen);
+}
 
 static bool client_getSingleReply(client_data_t* cd,
   smtp_reply_t *reply, char *buffer, size_t maxlen) {

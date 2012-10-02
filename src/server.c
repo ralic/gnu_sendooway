@@ -41,12 +41,10 @@ ssize_t server_read(void* p, char *buf, size_t buflen) {
 	} else return ret;
 }
 
-ssize_t server_write(struct server_data_t *sd, char* buf,
+static void server_send(struct server_data_t *sd, char* buf,
   size_t buflen) {
 
-	if (sd->state == stateZombie) return 0;
-
-	return write(sd->out, buf, buflen);
+	if (sd->state != stateZombie) write(sd->out, buf, buflen);
 }
 
 
@@ -68,13 +66,13 @@ ssize_t server_read(void* p, char *buf, size_t buflen) {
 	} else return ret;
 }
 
-ssize_t server_write(struct server_data_t *sd, char* buf,
+static void server_send(struct server_data_t *sd, char* buf,
   size_t buflen) {
 
-	if (sd->state == stateZombie) return 0;
-
-	if (!sd->tlsEnabled) return write(sd->out, buf, buflen);
-	return gnutls_record_send(sd->session, buf, buflen);
+	if (sd->state != stateZombie) {
+		if (!sd->tlsEnabled) write(sd->out, buf, buflen);
+		else gnutls_record_send(sd->session, buf, buflen);
+	}
 }
 
 bool server_sslPrepare(server_data_t *sd) {
@@ -140,6 +138,32 @@ bool server_sslHandshake(server_data_t *sd) {
 	return true;
 }
 #endif
+
+static void server_flush(server_data_t* sd) {
+	if (sd->lineBufferPos > 0) {
+		server_send(sd, sd->lineBuffer, sd->lineBufferPos);
+		sd->lineBufferPos = 0;
+	}
+}
+
+void server_write(struct server_data_t *sd, char* buf, size_t buflen) {
+	size_t size = sizeof(sd->lineBuffer) - sd->lineBufferPos;
+
+	if (size < buflen) {
+		server_flush(sd);
+		size = sizeof(sd->lineBuffer);
+	}
+
+	if (size > buflen) {
+		bool flush = false;
+		while (buflen--) {
+			sd->lineBuffer[sd->lineBufferPos] = *buf++;
+			flush |= (sd->lineBuffer[sd->lineBufferPos++] == '\n');
+		}
+		if (flush) server_flush(sd);
+
+	} else server_send(sd, buf, buflen);
+}
 
 static size_t server_readline(server_data_t *sd, char *buf,
   size_t buflen, bool allowBinary) {

@@ -20,6 +20,7 @@
 #define _SENDOOWAY_SERVER_H__
 
 #include "config.h"
+#include "smtp.h"
 #ifdef HAVE_GNUTLS
 	#include <gnutls/gnutls.h>
 #endif
@@ -37,6 +38,9 @@ typedef struct server_data_t {
 		bool tlsInitDone;
 		bool tlsEnabled;
 
+		char lineBuffer[SMTP_MAXCMDLEN];
+		int lineBufferPos;
+
 		char peerIp[INET6_ADDRSTRLEN];
 		enum {stateUnauthed = 0, stateAuthed,
 		  stateConnected, stateZombie} state;
@@ -47,7 +51,7 @@ typedef struct server_data_t {
 ssize_t server_read(void* p, char *buf, size_t buflen);
 
 #define server_writes(sd, str) server_write(sd, str, strlen(str))
-ssize_t server_write(struct server_data_t *sd, char* buf, size_t buflen);
+void server_write(struct server_data_t *sd, char* buf, size_t buflen);
 
 bool server_sslPrepare(server_data_t *sd);
 bool server_sslHandshake(server_data_t *sd);

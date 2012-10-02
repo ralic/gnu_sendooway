@@ -20,6 +20,7 @@
 #define _SENDOOWAY_CLIENT_H__
 
 #include "config.h"
+#include "smtp.h"
 #ifdef HAVE_GNUTLS
 	#include <gnutls/gnutls.h>
 #endif
@@ -42,6 +43,9 @@ typedef struct client_data_t {
 	bool extSize;
 	bool ext8bit;
 
+	char lineBuffer[SMTP_MAXLINE];
+	int  lineBufferPos;
+
 	char ehlo[255];
 	char *host;
 	char *port;
@@ -52,7 +56,7 @@ typedef struct client_data_t {
 #include "util.h"
 #include "proxy.h"
 
-ssize_t client_write(client_data_t* cd, char* buf, size_t buflen);
+void client_write(client_data_t* cd, char* buf, size_t buflen);
 ssize_t client_read(void* p, char *buf, size_t buflen);
 bool client_connect(client_data_t* cd);
 void client_disconnect(client_data_t* cd);
