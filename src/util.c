@@ -252,7 +252,7 @@ static const char* util_base64table =
 ;
 
 void util_base64encode(void* input_b, int size, char* output) {
-	/* output always needs "size*round_down((size+2)/3) + 1" bytes */
+	/* output always needs "4*round_down((size+2)/3) + 1" bytes */
 	char* input = input_b;
 	while (size >= 3) {
 		output[0] = util_base64table[ (input[0] & 0xFC) >> 2 ];
@@ -300,7 +300,7 @@ size_t util_base64decode(char* input, size_t size, char* output) {
 				quartet[i] = 0;
 				if (--len <= 0) goto out; /* Attack? */
 			} else {
-				char *p = strchr(util_base64table, input[i]);
+				const char *p = strchr(util_base64table, input[i]);
 				if (!p) goto out; /* Error */
 				quartet[i] = (p - util_base64table);
 			}

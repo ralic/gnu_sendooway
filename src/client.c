@@ -408,7 +408,20 @@ bool client_connect(client_data_t* cd) {
 	if (!client_sendEhlo(cd)) goto fail;
 
 	/* Force 8BITMIME? */
-	if (!cd->ext8bit && (options.ext8bitmime == e8bForce)) goto fail;
+	if (!cd->ext8bit) switch (options.ext8bitmime) {
+		case e8bDisable:
+			break;
+
+		case e8bIgnore:
+			util_logger(LOG_WARNING, "Ignoring the fact that server %s does"
+			  " not advertise 8BITMIME extension.", cd->host);
+			break;
+
+		case e8bForce:
+			util_logger(LOG_WARNING, "Unable to guarantee 8BITMIME support"
+			  " because server %s has not advertised it.", cd->host);
+			goto fail;
+	}
 
 	if (cd->username && cd->password) {
 		if (client_authCramMD5(cd)) return true;
