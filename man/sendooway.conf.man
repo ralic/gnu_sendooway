@@ -1,5 +1,5 @@
 .\" Sendooway - a multi-user and multi-target SMTP proxy
-.\"   Copyright (C) 2012, 2013 Michael Kammer
+.\"   Copyright (C) 2012-2014 Michael Kammer
 .\"   Published under the GNU GPL version 3 (or later)
 .\"
 .\" Sendooway is free software: you can redistribute it and/or modify
@@ -214,11 +214,75 @@ and might corrupt the connection to some remote servers.
 .B never
 Avoid using this mechanism.
 .RE
+
+.TP
+.B authBackend \fP[tristate]
+Sendooway can authenticate users against PAM or LDAP. Both modules might
+have been disabled at compile time. The following values are valid:
+.RS
+.TP
+.B PAM \fP(default)
+Users are authenticated against PAM with the realm \fIsendooway\fP.
+Sendooway sends the password as response to the first PAM request. If
+you heavily modified your PAM configuration be sure to provide a simple
+backup for Sendooway. However, the default setup will work fine on most
+systems.
+.PP
+.RS
+Sendooway uses NSS to request additional user attributes.
+.RE
+.TP
+.B LDAP
+Users are validated by authenticating their DN on an LDAPv3 server. At
+the moment, only simple binding is supported by Sendooway and there is
+no support for anonymous or administrative binds. If this method is used
+values for \fIldapAuthDN\fP and \fIldapUri\fP must be provided as well
+(see below).
+.PP
+.RS
+Sendooway uses LDAP to request additional user attributes.
+.RE
+.TP
+.B none
+Disable multi-user support. Sendooway will only accept the name of the
+system user running the process. The supplied password will not be
+checked. This method is useful for embedded environments without
+multi-user support or when Sendooway is used over a secured console.
+.PP
+.RS
+Sendooway uses NSS to request additional user attributes.
+.RE
+.RE
+
+.TP
+.B ldapAuthDN \fP[string]
+If using the LDAP backend, Sendooway will validate users by
+authenticating them on the LDAP server. This value describes how
+usernames are mapped to DNs. The placeholder \fI%u\fP is replaced
+by the username. The corresponding entry must implement the
+\fIposixaccount\fP objectclass because Sendooway will work with the
+\fIuidNumber\fP, \fIgidNumber\fP and \fIhomedirectory\fP attributes.
+.PP
+
+.TP
+.B ldapUri \fP[string]
+If using the LDAP backend, this value must contain one or more LDAP
+servers. A server must be named in URI style which looks like
+ldap://example/, ldaps://example/ or ldap://example:port/. Several
+URIs can be seperated by spaces.
+.PP
+
+.TP
+.B ldapSSLca \fP[string]
+This file holds known certificate authorities for the LDAP client. It
+defaults to be the same value as \fIsslCA\fP if not otherwise specified.
+.PP
+
 .TP
 .B validUser \fP[string]
 This keyword is special. If there is no such keyword inside your
 configuration file every user is allowed to use Sendooway (as long as
-(s)he is able to authenticate against PAM). This is, of course, the
+(s)he is able to authenticate against PAM/LDAP). This is, of course, the
 default behavior.
 .PP
 .RS
@@ -227,6 +291,12 @@ be listed here. Note that this keyword has to be \fIrepeated for
 every\fP single user. You can also enable an entire user group by
 specifying the group name prefixed with a percentage sign ('%').
 .RE
+.PP
+.RS
+\fBNOTE:\fP The \fIvalidUser\fP keyword is currently not supported by
+the LDAP backend and will be ignored silently.
+.RE
+
 .TP
 .B smarthostMapping \fP[string]
 This keyword can be given multiple times. It tells Sendooway where
@@ -271,7 +341,9 @@ validation are ignored. Nevertheless validation errors are always
 logged.
 .TP
 .B noAuth
-Do not try to authenticate on remote side.
+Do not try to authenticate on remote side and ignore the values
+of the username and password field. A hyphen ('-') is the recommend
+placeholder for both fields.
 .RE
 .PP
 If the \fBsmarthostMapping\fP keyword is neither given inside your

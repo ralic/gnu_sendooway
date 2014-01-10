@@ -1,7 +1,7 @@
 /**
  * This file is part of
  *   Sendooway - a multi-user and multi-target SMTP proxy
- *   Copyright (C) 2012, 2013 Michael Kammer
+ *   Copyright (C) 2012-2014 Michael Kammer
  *
  * Sendooway is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +49,21 @@ struct options_t options = {
 	.sslCert = NULL,
 	.sslKey = NULL,
 
+	/* LDAP related */
+	.ldapAuthDN = NULL,
+	.ldapUri = NULL,
+	.ldapSSLca = NULL,
+
+	/* Auth backends */
+#ifdef HAVE_LIBPAM
+	.authBackend = abPAM,
+#else
+	#ifdef HAVE_LIBLDAP
+	.authBackend = abLDAP,
+	#else
+	.authBackend = abNone,
+	#endif
+#endif
 	.mailerEncryption = meAllowed,
 
 	/* Smarthost AUTH */
@@ -224,6 +239,18 @@ static enum {pkOk, pkErrKey, pkErrValue} options_parseKeyword(
 		if (isGlobal) options_setString(&options.sslKey, value);
 		return pkOk;
 	}
+	if (strcasecmp(key, "ldapAuthDN") == 0) {
+		if (isGlobal) options_setString(&options.ldapAuthDN, value);
+		return pkOk;
+	}
+	if (strcasecmp(key, "ldapUri") == 0) {
+		if (isGlobal) options_setString(&options.ldapUri, value);
+		return pkOk;
+	}
+	if (strcasecmp(key, "ldapSSLca") == 0) {
+		if (isGlobal) options_setString(&options.ldapSSLca, value);
+		return pkOk;
+	}
 
 	/* Arrays */
 	if (strcasecmp(key, "smarthostMapping") == 0) {
@@ -276,6 +303,21 @@ static enum {pkOk, pkErrKey, pkErrValue} options_parseKeyword(
 	}
 
 	/* Enums */
+	if (strcasecmp(key, "authBackend") == 0) {
+		if (strcasecmp(value, "none") == 0)
+		  if (isGlobal) options.authBackend = abNone;
+#ifdef HAVE_LIBPAM
+		else if (strcasecmp(value, "PAM") == 0)
+		  if (isGlobal) options.authBackend = abPAM;
+#endif
+#ifdef HAVE_LIBLDAP
+		else if (strcasecmp(value, "LDAP") == 0)
+		  if (isGlobal) options.authBackend = abLDAP;
+#endif
+		else return pkErrValue;
+
+		return pkOk;
+	}
 	if (strcasecmp(key, "mailerEncryption") == 0) {
 		if (strcasecmp(value, "forbidden") == 0)
 		  options.mailerEncryption = meForbidden;
@@ -378,8 +420,27 @@ bool options_parse(char *conffile, bool isGlobal) {
 
 	/* default, if sslCA is undefined */
 	if (!options.sslCa || !*options.sslCa) {
-		options.sslCa = strdup(SYSCONFDIR"/ssl/certs/ca-certificates.crt");
+		options_setString(&options.sslCa,
+		  SYSCONFDIR"ssl/certs/ca-certificates.crt");
 	}
+
+#ifdef HAVE_LIBLDAP
+	if (options.authBackend == abLDAP) {
+		if ( (!options.ldapAuthDN || !*options.ldapAuthDN)
+		  || (!options.ldapUri || !*options.ldapUri) ) {
+
+			util_logger(LOG_CRIT, "The ldapAuthDN and ldapUri configuration "
+			  "keys are essential if the LDAP backend is used. Please define "
+			  "them or use another backend.");
+			return false;
+		}
+
+		/* use sslCA, if ldapSSLca is undefined */
+		if (!options.ldapSSLca || !*options.ldapSSLca) {
+			options_setString(&options.ldapSSLca, options.sslCa);
+		}
+	}
+#endif
 
 	return true;
 

@@ -1,7 +1,7 @@
 /**
  * This file is part of
  *   Sendooway - a multi-user and multi-target SMTP proxy
- *   Copyright (C) 2012, 2013 Michael Kammer
+ *   Copyright (C) 2012-2014 Michael Kammer
  *
  * Sendooway is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,8 +40,10 @@ extern struct options_t {
 	int timeout;
 	char *localname, *userInclude;
 	char *sslCa, *sslCert, *sslKey;
+	char *ldapAuthDN, *ldapUri, *ldapSSLca;
 	options_maplist_t *globalMappings, *userMappings;
 	options_validUser_t *validUsers;
+	enum {abNone, abPAM, abLDAP} authBackend;
 	enum {meForbidden, meAllowed, meRequired} mailerEncryption;
 	enum {spNever, spAdvertised, spAlwaysTry} smarthostPlain;
 	enum {slNever, slAdvertised, slAlwaysTry} smarthostLogin;

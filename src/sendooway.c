@@ -1,7 +1,7 @@
 /**
  * This file is part of
  *   Sendooway - a multi-user and multi-target SMTP proxy
- *   Copyright (C) 2012, 2013 Michael Kammer
+ *   Copyright (C) 2012-2014 Michael Kammer
  *
  * Sendooway is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ static int printHelp() {
 		"  -S    consider connection safe (disable STARTTLS command)\n"
 #endif
 		"  -c    load configuration from CONFIG\n"
-		"        (default: "SYSCONFDIR"/sendooway.conf)\n"
+		"        (default: "SYSCONFDIR"sendooway.conf)\n"
 		"  -b    bind and listen on tcp port PORT\n"
 		"  -l    do not use syslog but append log data to LOGFILE\n"
 		"  -V    print program version and exit\n"
@@ -51,7 +51,7 @@ static int printHelp() {
 static int printVer() {
 	puts(
 		PACKAGE_NAME" version "PACKAGE_VERSION"\n"
-		"Copyright (C) 2012, 2013 Michael Kammer\n"
+		"Copyright (C) 2012-2014 Michael Kammer\n"
 		"\n"
 		"Licensed under the GPL version 3 or later\n"
 		"This is free software: you are free to change and redistribute "
@@ -83,7 +83,7 @@ static const char* shortopts = "+hVb:c:Sl:";
 #endif
 
 int main(int argc, char** argv) {
-	char *configfile = SYSCONFDIR"/sendooway.conf";
+	char *configfile = SYSCONFDIR"sendooway.conf";
 	enum {sslOff, sslSession, sslDisable} ssl = sslOff;
 	char *bindPort = NULL;
 

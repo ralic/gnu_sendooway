@@ -1,7 +1,7 @@
 /**
  * This file is part of
  *   Sendooway - a multi-user and multi-target SMTP proxy
- *   Copyright (C) 2012, 2013 Michael Kammer
+ *   Copyright (C) 2012-2014 Michael Kammer
  *
  * Sendooway is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -390,17 +390,13 @@ static void server_doAuth(server_data_t* sd, char *cmdline) {
 	if ((reply == replyAuthOk) && username && password) {
 		reply = replyAuthFailed;
 
-		/* Check via PAM */
-		if (auth_validate("sendooway", username, password)) {
+		/* Check via PAM/LDAP and drop privileges */
+		if (auth_logon(username, password)) {
+			reply = replyAuthOk;
+			sd->state = stateAuthed;
 
-			/* Drop privileges */
-			if (auth_runas(username)) {
-				reply = replyAuthOk;
-				sd->state = stateAuthed;
-
-				/* Reread configuration */
-				options_parseUserInclude();
-			}
+			/* Reread configuration */
+			options_parseUserInclude();
 		}
 	}
 

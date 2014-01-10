@@ -1,7 +1,7 @@
 /**
  * This file is part of
  *   Sendooway - a multi-user and multi-target SMTP proxy
- *   Copyright (C) 2012, 2013 Michael Kammer
+ *   Copyright (C) 2012-2014 Michael Kammer
  *
  * Sendooway is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,12 @@
 #include <stdbool.h>
 
 extern struct auth_session_t {
+	gid_t gid;
+	uid_t uid;
 	char *username;
 	char *home;
 } auth_session;
 
-bool auth_validate(const char* realm, const char* username,
-  const char* password);
-bool auth_runas(const char* username);
+bool auth_logon(const char* username, const char* password);
 
 #endif

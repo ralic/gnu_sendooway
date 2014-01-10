@@ -1,5 +1,5 @@
 # Sendooway - a multi-user and multi-target SMTP proxy
-#   Copyright (C) 2012, 2013 Michael Kammer
+#   Copyright (C) 2012-2014 Michael Kammer
 #   Published under the GNU GPL version 3 (or later)
 #
 # Sendooway is free software: you can redistribute it and/or modify
@@ -40,9 +40,13 @@ AC_ARG_ENABLE([db-sendooway],
               [enable_db_sendooway=yes]
 )
 
+AC_ARG_WITH([ldap],
+            AS_HELP_STRING([--without-ldap],
+                           [disable LDAP support]),
+)
 AC_ARG_WITH([pam],
             AS_HELP_STRING([--without-pam],
-                           [disable PAM (no multi-user support)]),
+                           [disable PAM support]),
 )
 AC_ARG_WITH([gnutls],
             AS_HELP_STRING([--without-gnutls],
@@ -70,6 +74,10 @@ AS_IF([test "x$with_gnutls" = "xno"], [],
 
 AS_IF([test "x$with_pam" = "xno"], [],
       [AC_CHECK_LIB([pam], [pam_start],, AC_MSG_ERROR([libpam missing?]))]
+)
+
+AS_IF([test "x$with_ldap" = "xno"], [],
+      [AC_CHECK_LIB([ldap], [ldap_initialize],, AC_MSG_ERROR([libldap missing?]))]
 )
 
 # Checks for header files.
